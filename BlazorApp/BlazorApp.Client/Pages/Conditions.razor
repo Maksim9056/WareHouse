@@ -1,0 +1,32 @@
+﻿@page "/Conditions"
+@rendermode InteractiveWebAssembly
+@using ClassLibrary.Models;
+
+
+@inject HttpClient HttpClient
+<h3>Состояние</h3>
+@if (сonditions == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    @foreach (var resourc in сonditions)
+    {
+        <p>@resourc.Name</p>
+    }
+}
+
+@code {
+    IEnumerable<Condition> сonditions;
+    protected override async Task OnInitializedAsync()
+    {
+
+        // httpClientFactory.CreateClient("ApiClient");
+        // https://localhost:7166/api/
+        var client = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
+        сonditions = client;
+        // return base.OnInitializedAsync();
+    }
+}
+

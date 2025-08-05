@@ -1,0 +1,71 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Управление складом</a>
+    </div>
+</div>
+<style>
+     .text{
+         color:white;
+        
+     }
+</style>
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+         <div class="nav-item px-3">
+            <div class="text">Склад</div>
+
+         </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Balance" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Баланс
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Receipts">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Поступление
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Shipments">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Отгрузки
+            </NavLink>
+        </div>
+          <div class="nav-item px-3">
+            <div class="text">Справочник</div>
+
+          </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Clients">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Клиенты
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Unit">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Единицы измерения
+            </NavLink>
+        </div>
+
+         <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Resource">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Ресурсы
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Conditions">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Состояние
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="TypeDocs">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Тип документа
+            </NavLink>
+        </div>
+
+        
+    </nav>
+</div>
+

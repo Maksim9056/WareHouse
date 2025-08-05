@@ -1,0 +1,21 @@
+﻿@page "/"
+@inject NavigationManager navigationManager
+
+@code{
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+
+     
+            navigationManager.NavigateTo("/Balance");
+        }
+        catch(Exception )
+        {
+            navigationManager.NavigateTo("/Balance");
+
+        }
+    }
+}
