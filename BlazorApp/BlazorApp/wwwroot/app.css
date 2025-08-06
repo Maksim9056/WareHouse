@@ -58,3 +58,30 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+
+
+.document-table {
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+    .document-table th,
+    .document-table td {
+        border: 1px solid #ccc;
+        padding: 8px 12px;
+    }
+
+    .document-table thead th {
+        background-color: #e0e0e0;
+        text-align: left;
+    }
+
+/* курсор-указатель и подсветка при наведении */
+.clickable-row {
+    cursor: pointer;
+}
+
+    .clickable-row:hover {
+        background-color: #f0f0f0;
+    }

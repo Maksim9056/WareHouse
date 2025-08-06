@@ -21,7 +21,16 @@ namespace WebAPI
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
-         
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowBlazorClient", policy =>
+                {
+                    policy
+                        .WithOrigins("https://localhost:7104")   // здесь адрес вашего WASM-клиента
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -39,6 +48,7 @@ namespace WebAPI
                 }
             }
             app.UseHttpsRedirection();
+            app.UseCors("AllowBlazorClient");
 
             app.UseAuthorization();
 

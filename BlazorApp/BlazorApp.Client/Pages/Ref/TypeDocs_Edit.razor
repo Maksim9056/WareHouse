@@ -1,0 +1,63 @@
+﻿@page "/TypeDocs/Details/{Id:int}"
+@using ClassLibrary.Models
+@rendermode InteractiveWebAssembly
+@inject HttpClient HttpClient
+@inject NavigationManager NavManager
+
+<h3>Клиенты</h3>
+
+<div class="mb-3">
+    <button class="btn btn-success me-2" @onclick="Save">Сохранить</button>
+    <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
+</div>
+<label>Название</label>
+
+@if (typedocs != null)
+{
+    <input @bind="typedocs.Name" />
+
+}
+
+
+
+<h3>Тип документа</h3>
+
+@code {
+    [Parameter]
+
+    public int Id { get; set; }
+    TypeDoc typedocs;
+
+    private async Task Save()
+    {
+
+        var clien =  await HttpClient.PutAsJsonAsync($"TypeDocs/{Id}", typedocs);
+
+
+      var Update =  await clien.Content.ReadFromJsonAsync<TypeDoc>();
+
+        
+        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
+        NavManager.NavigateTo("/TypeDocs");
+    }
+
+    private void OnArchive()
+    {
+        // TODO: заменить на реальную логику
+        // NavManager.NavigateTo("/Clients/Archive");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // https://localhost:7166/api/
+            var client = await HttpClient.GetFromJsonAsync<TypeDoc>($"TypeDocs/{Id}");
+            typedocs = client;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+
+    }
+}
