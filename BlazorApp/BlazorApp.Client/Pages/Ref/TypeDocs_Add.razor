@@ -1,4 +1,4 @@
-﻿@page "/TypeDocs/Details/{Id:int}"
+﻿@page "/TypeDocs/add"
 @using ClassLibrary.Models
 @rendermode InteractiveWebAssembly
 @inject NavigationManager NavManager
@@ -8,7 +8,6 @@
 
 <div class="mb-3">
     <button class="btn btn-success me-2" @onclick="() => Save()">Сохранить</button>
-    <button class="btn btn-warning" @onclick="() => OnArchive()">К архиву</button>
 </div>
 <label>Название</label>
 
@@ -22,10 +21,7 @@
 
 
 @code {
-    [Parameter]
-
-    public int Id { get; set; }
-    TypeDoc typedocs;
+    TypeDoc typedocs = new TypeDoc();
 
     private async Task Save()
     {
@@ -34,7 +30,7 @@
 
 
 
-            var clien = await HttpClient.PutAsJsonAsync($"TypeDocs/{Id}", typedocs);
+            var clien = await HttpClient.PostAsJsonAsync($"TypeDocs", typedocs);
 
 
             // await clien.Content.ReadFromJsonAsync<TypeDoc>();
@@ -43,30 +39,25 @@
             // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
             NavManager.NavigateTo("/TypeDocs");
         }
-        catch(Exception e)
+        catch (Exception e)
         {
-            
+
         }
     }
 
-    private async Task OnArchive()
+    private void OnArchive()
     {
-
-        var clien = await HttpClient.DeleteAsync($"TypeDocs/{Id}");
-
         // TODO: заменить на реальную логику
         // NavManager.NavigateTo("/Clients/Archive");
-        NavManager.NavigateTo("/TypeDocs");
-
     }
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // https://localhost:7166/api/
-            var client = await HttpClient.GetFromJsonAsync<TypeDoc>($"TypeDocs/{Id}");
-            typedocs = client;
+            // // https://localhost:7166/api/
+            // var client = await HttpClient.GetFromJsonAsync<TypeDoc>($"TypeDocs/{Id}");
+            // typedocs = client;
         }
         catch (Exception e)
         {

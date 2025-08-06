@@ -1,21 +1,52 @@
 ﻿@page "/Resource"
 @rendermode InteractiveWebAssembly
 @using ClassLibrary.Models;
+@inject NavigationManager NavManager
 
 
 @inject  HttpClient HttpClient
 <h3>Ресурсы</h3>
+
+<div class="mb-3">
+    <button class="btn btn-success me-2" @onclick="OnAdd">Добавить</button>
+    <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
+</div>
 @if (resources == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
-    @foreach (var resourc in  resources)
+
+        <table class="document-table">
+            <!-- задаём ширину колонок -->
+            <colgroup>
+                <col style="width:50%;" />
+            </colgroup>
+
+            <thead>
+                <tr>
+                    <th>Наименование</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var doc in resources)
+                {
+                    <tr class="clickable-row" @onclick="() => OnRowClick(doc.Id)">
+                        <td>@doc.Name</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+
+    
+
+    @* @foreach (var resourc in  resources)
     {
         <p>@resourc.Name</p>
         <p>@resourc.condition.Name</p>
-    }
+    } *@
 }
 
 @code {
@@ -28,6 +59,31 @@ else
         var client = await HttpClient.GetFromJsonAsync<IEnumerable<Resource>>("Resources");
         resources = client;
         // return base.OnInitializedAsync();
+    }
+
+    private void OnAdd()
+    {
+        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
+        NavManager.NavigateTo("/Resource/add");
+    }
+
+    private void OnArchive()
+    {
+        // TODO: заменить на реальную логику
+        // NavManager.NavigateTo("/Clients/Archive");
+    }
+
+    private void OnRowClick(int id)
+    {
+        try
+        {
+            // Переход на страницу деталей, например /TypeDocs/Details/5
+            NavManager.NavigateTo($"/Resource/{id}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
     }
 }
 

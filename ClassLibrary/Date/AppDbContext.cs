@@ -33,21 +33,21 @@ namespace ClassLibrary.Date
             //    .HasIndex(cp => cp.Symbol)
             //    .IsUnique();
             modelBuilder.Entity<Condition>().HasData(
-                   new Condition { Id = 1, Name = "Подписан" },
+                   new Condition { Id = 1, Name = "Подписан",    Code = "Подписан" },
 
-                   new Condition { Id = 2, Name = "Отозван" },
-                   new Condition { Id = 3, Name = "Не подписан" },
-                   new Condition { Id = 4, Name = "В наличии" },
-                   new Condition { Id = 5, Name = "Закончился" },
-                   new Condition { Id = 6, Name = "Закупка" },
-                   new Condition { Id = 7, Name = "Активный" },
-                   new Condition { Id = 8, Name = "Новый" },
-                   new Condition { Id = 9, Name = "Готов" },
-                   new Condition { Id = 10, Name = "Архив" }
+                   new Condition { Id = 2, Name = "Отозван",     Code = "Отозван" },
+                   new Condition { Id = 3, Name = "Не подписан", Code = "Не подписан" },
+                   new Condition { Id = 4, Name = "В наличии",   Code = "В наличии" },
+                   new Condition { Id = 5, Name = "Закончился",  Code = "Закончился" },
+                   new Condition { Id = 6, Name = "Закупка",     Code = "Закупка" },
+                   new Condition { Id = 7, Name = "Активный",    Code = "Активный" },
+                   new Condition { Id = 8, Name = "Новый",       Code = "Новый" },
+                   new Condition { Id = 9, Name = "Готов",       Code = "Готов" },
+                   new Condition { Id = 10, Name = "Архив",      Code = "Архив" }
             );
             modelBuilder.Entity<TypeDoc>().HasData(
-                   new TypeDoc { Id = 1, Name = "Поступление" },
-                   new TypeDoc { Id = 2, Name = "Отгрузка" }
+                   new TypeDoc { Id = 1, Name = "Поступление", Code = "Поступление" },
+                   new TypeDoc { Id = 2, Name = "Отгрузка",    Code = "Отгрузка" }
             );
 
             base.OnModelCreating(modelBuilder);

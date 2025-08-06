@@ -10,12 +10,12 @@ namespace ClassLibrary.Models
     /// <summary>
     /// Справочник Клиентов
     /// </summary>
-    public class Client
+    public class Client : BaseRef
     {
-        [Key]
-        public int Id { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
+        //[Key]
+        //public int Id { get; set; }
+        //public string Code { get; set; }
+        //public string Name { get; set; }
         public string Address { get; set; }
         public Condition condition { get; set; }
     }

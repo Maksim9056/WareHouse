@@ -1,0 +1,114 @@
+﻿@page "/Resource/{Id:int}"
+@using ClassLibrary.Models
+@rendermode InteractiveWebAssembly
+@inject NavigationManager NavManager
+@inject HttpClient HttpClient
+
+<h3>Редактирование записи ресурсов </h3>
+
+<div class="mb-3">
+    <button class="btn btn-success me-2" @onclick="() => Save()">Сохранить</button>
+    <button class="btn btn-warning" @onclick="() => OnArchive()">К архиву</button>
+</div>
+<label>Название</label>
+
+@if (condition != null)
+{
+    <input @bind="resource.Name" />
+
+    <label>Код</label>
+
+    <input @bind="resource.Code" />
+
+    <div class="form-group">
+        <label>Состояние</label>
+        <select @bind="conditions.Id">
+
+            <option value="@conditions.Id">@conditions.Name</option>
+
+            @foreach (var s in condition)
+            {
+                @if (conditions.Id != s.Id)
+                {
+                    <option value="@s.Id">@s.Name</option>
+
+                }
+
+            }
+
+        </select>
+    </div>
+}
+
+
+
+
+@code {
+    [Parameter]
+
+    public int Id { get; set; }
+    Resource resource = new Resource();
+    IEnumerable<Condition> condition;
+    Condition conditions = new Condition();
+
+    private async Task Save()
+    {
+        try
+        {
+            if (conditions != null)
+            {
+
+                conditions = condition.FirstOrDefault(u => u.Id == conditions.Id);
+
+                resource.condition = conditions;
+
+
+                var clien = await HttpClient.PutAsJsonAsync($"Resources/{Id}", resource);
+
+
+                // await clien.Content.ReadFromJsonAsync<TypeDoc>();
+
+
+                // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
+                NavManager.NavigateTo("/Resource");
+            }
+        }
+        catch(Exception e)
+        {
+
+        }
+    }
+
+    private async Task OnArchive()
+    {
+
+
+
+        var clien = await HttpClient.PutAsJsonAsync($"Resources/{Id}", resource);
+        // var clien = await HttpClient.DeleteAsync($"Resources/{Id}");
+
+        // // TODO: заменить на реальную логику
+        // // NavManager.NavigateTo("/Clients/Archive");
+        // NavManager.NavigateTo("/Resource");
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // https://localhost:7166/api/
+            var client = await HttpClient.GetFromJsonAsync<Resource>($"Resources/{Id}");
+            resource = client;
+            conditions = resource.condition;
+            var clients = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
+            condition = clients;
+
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+
+    }
+}

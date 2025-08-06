@@ -10,12 +10,12 @@ namespace ClassLibrary.Models
     /// <summary>
     /// Справочник единиц измерения
     /// </summary>
-    public class Unit
+    public class Unit : BaseRef
     {
-        [Key]
-        public int Id { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
+        //[Key]
+        //public int Id { get; set; }
+        //public string Code { get; set; }
+        //public string Name { get; set; }
         public Condition condition { get; set; }
     }
 }

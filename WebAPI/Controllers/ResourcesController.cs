@@ -25,14 +25,14 @@ namespace WebAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Resource>>> GetResource()
         {
-            return await _context.Resource.ToListAsync();
+            return await _context.Resource.Include(u => u.condition).ToListAsync();
         }
 
         // GET: api/Resources/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Resource>> GetResource(int id)
         {
-            var resource = await _context.Resource.FindAsync(id);
+            var resource = await _context.Resource.Include(u =>u.condition).FirstOrDefaultAsync(u=>u.Id == id);
 
             if (resource == null)
             {
@@ -51,6 +51,7 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
+            resource.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == resource.condition.Id);
 
             _context.Entry(resource).State = EntityState.Modified;
 
@@ -78,7 +79,12 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Resource>> PostResource(Resource resource)
         {
+
+
+            resource.condition =await _context.Condition.FirstOrDefaultAsync(u => u.Id == resource.condition.Id);
+
             _context.Resource.Add(resource);
+
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetResource", new { id = resource.Id }, resource);
