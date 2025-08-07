@@ -1,24 +1,34 @@
 ﻿@page "/Resource"
 @rendermode InteractiveWebAssembly
+@using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models;
 @inject NavigationManager NavManager
 
 
 @inject  HttpClient HttpClient
 <h3>Ресурсы</h3>
-
+@* 
 <div class="mb-3">
     <button class="btn btn-success me-2" @onclick="OnAdd">Добавить</button>
     <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
-</div>
-@if (resources == null)
+</div> *@
+
+    @if (resources == null)
 {
-    <p><em>Loading...</em></p>
+    <p>Загрузка...</p>
 }
 else
 {
+    <AutoRefTable TRef="Resource" Items="resources" OnRowClick="ShowDetails" >
+        <HeaderButtons>
+            <button class="btn btn-success me-2" @onclick="OnAdd">Добавить</button>
+            <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
+        </HeaderButtons>
 
-        <table class="document-table">
+    </AutoRefTable>
+}
+
+   @*      <table class="document-table">
             <!-- задаём ширину колонок -->
             <colgroup>
                 <col style="width:50%;" />
@@ -37,7 +47,7 @@ else
                     </tr>
                 }
             </tbody>
-        </table>
+        </table> *@
 
 
     
@@ -47,7 +57,7 @@ else
         <p>@resourc.Name</p>
         <p>@resourc.condition.Name</p>
     } *@
-}
+
 
 @code {
     IEnumerable<Resource> resources ;
@@ -71,6 +81,18 @@ else
     {
         // TODO: заменить на реальную логику
         // NavManager.NavigateTo("/Clients/Archive");
+    }
+
+    void ShowDetails(Resource r)
+    {
+        try
+        {
+          NavManager.NavigateTo($"/Resource/{r.Id}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
     }
 
     private void OnRowClick(int id)

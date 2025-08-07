@@ -7,10 +7,8 @@ namespace ClassLibrary.Models
     /// </summary>
     public class Resource : BaseRef
     {
-        //[Key]
-        //public int Id { get; set; }
-        //public string Code { get; set; }
-        //public string Name { get; set; }
+        [Display(Name = "Состояние")]
+
         public Condition condition { get; set; }
     }
 }

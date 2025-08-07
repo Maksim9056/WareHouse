@@ -14,7 +14,9 @@ namespace ClassLibrary.Models
         {
             [Key]
             public int Id { get; set; }
-            public string? Code { get; set; }
+            [Display(Name = "Код")]
+             public string? Code { get; set; }
+            [Display(Name = "Имя")]
             public string Name { get; set; }
             public override string ToString() => $"{Id}: {Name}";
     }

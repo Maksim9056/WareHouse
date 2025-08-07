@@ -12,10 +12,6 @@ namespace ClassLibrary.Models
     /// </summary>
     public class Unit : BaseRef
     {
-        //[Key]
-        //public int Id { get; set; }
-        //public string Code { get; set; }
-        //public string Name { get; set; }
         public Condition condition { get; set; }
     }
 }

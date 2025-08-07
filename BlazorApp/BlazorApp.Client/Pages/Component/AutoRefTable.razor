@@ -1,0 +1,94 @@
+﻿@typeparam TRef where TRef : BaseRef
+@using System.Reflection
+@using System.ComponentModel.DataAnnotations
+@using ClassLibrary.Models
+
+@if (HeaderButtons != null)
+{
+    <div class="mb-3">
+        @HeaderButtons
+    </div>
+}
+<table class="document-table">
+    <thead>
+        <tr>
+            @foreach (var prop in GetDisplayProps())
+            {
+                <th>
+                    @GetDisplayName(prop)
+                    @if (IsRequired(prop))
+                    {
+                        <span style="color: red">*</span>
+                    }
+                </th>
+            }
+            @if (OnRowClick.HasDelegate)
+            {
+                <th></th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @if (Items != null)
+        {
+            @foreach (var item in Items)
+            {
+                <tr>
+                    @foreach (var prop in GetDisplayProps())
+                    {
+                        <td>
+                            @DisplayPropValue(prop, item)
+                        </td>
+                    }
+                    @if (OnRowClick.HasDelegate)
+                    {
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="@(() => OnRowClick.InvokeAsync(item))">Открыть</button>
+                        </td>
+                    }
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code { 
+    //document-table table table-striped
+    [Parameter] public IEnumerable<TRef> Items { get; set; }
+    [Parameter] public EventCallback<TRef> OnRowClick { get; set; }
+    [Parameter] public RenderFragment HeaderButtons { get; set; }
+
+    // Можно исключать поля, если не нужно показывать (например, Id)
+    private List<PropertyInfo> GetDisplayProps() =>
+        typeof(TRef).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+        .Where(p => p.Name != nameof(BaseRef.Id)).ToList();
+
+    private string GetDisplayName(PropertyInfo prop)
+    {
+        var attr = prop.GetCustomAttribute<DisplayAttribute>();
+        return attr?.Name ?? prop.Name;
+    }
+
+    private bool IsRequired(PropertyInfo prop)
+    {
+        return prop.GetCustomAttribute<RequiredAttribute>() != null;
+    }
+
+    // Вывести значение: если BaseRef, показать Name; иначе — строку
+    private RenderFragment DisplayPropValue(PropertyInfo prop, TRef item) => builder =>
+    {
+        var value = prop.GetValue(item);
+        if (value == null)
+        {
+            builder.AddContent(0, "");
+        }
+        else if (value is BaseRef refObj)
+        {
+            builder.AddContent(1, refObj.Name);
+        }
+        else
+        {
+            builder.AddContent(2, value.ToString());
+        }
+    };
+}
