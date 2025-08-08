@@ -246,7 +246,7 @@ else
         // 2) документ + строки
         if (IsCreate)
         {
-            _doc = new Document { Date = DateTime.Today };
+            _doc = new Document { Date = DateOnly.FromDateTime(DateTime.Today) };
             _lines = new();
         }
         else

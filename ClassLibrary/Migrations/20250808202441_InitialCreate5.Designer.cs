@@ -3,6 +3,7 @@ using System;
 using ClassLibrary.Date;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ClassLibrary.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250808202441_InitialCreate5")]
+    partial class InitialCreate5
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -173,8 +176,8 @@ namespace ClassLibrary.Migrations
                     b.Property<int>("ConditionId")
                         .HasColumnType("integer");
 
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Number")
                         .IsRequired()
@@ -205,7 +208,7 @@ namespace ClassLibrary.Migrations
                     b.Property<int>("Count")
                         .HasColumnType("integer");
 
-                    b.Property<DateTimeOffset>("DateTime")
+                    b.Property<DateTime>("DateTime")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("DocumentId")

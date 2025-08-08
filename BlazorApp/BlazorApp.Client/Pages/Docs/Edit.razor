@@ -26,7 +26,8 @@ else
                 </div>
                 <div class="col-md-3">
                     <label>Дата</label>
-                    <InputDate class="form-control" @bind-Value="_document.Date" />
+                    <!-- было: <InputDate class="form-control" @bind-Value="_document.Date" /> -->
+                    <InputDate TValue="DateOnly" class="form-control" @bind-Value="_document.Date" />
                 </div>
                 <div class="col-md-3">
                     <label>Тип документа</label>
@@ -86,7 +87,7 @@ else
 
                     <tr @key="idx">
                         <td>
-                            <InputDate class="form-control form-control-sm" @bind-Value="row.DateTime" />
+                            <InputDate TValue="DateTimeOffset" @bind-Value="row.DateTime" />
                         </td>
                         <td>
                             <InputSelect TValue="int"
@@ -164,8 +165,8 @@ else
         // Потом документ
         if (Id == 0)
         {
-            _document = new Document { Date = DateTime.Today };
-            _resources = new();
+            // было: new Document { Date = DateTime.Today }
+            _document = new Document { Date = DateOnly.FromDateTime(DateTime.Today) }; _resources = new();
             _typeDocId = 0; _clientId = 0; _conditionId = 0;
         }
         else
@@ -184,7 +185,7 @@ else
 
     void AddRow()
     {
-        _resources!.Add(new Document_resource { DateTime = DateTime.Now, Count = 1 });
+        _resources!.Add(new Document_resource { DateTime = DateTimeOffset.UtcNow, Count = 1 });
         _resourceIds.Add(0);
         _unitIds.Add(0);
     }
@@ -200,66 +201,68 @@ else
     {
         if (_document is null || _resources is null) return;
 
-        // валидация
+        // простая валидация клиента
         if (string.IsNullOrWhiteSpace(_document.Number)) return;
         if (_typeDocId == 0 || _clientId == 0 || _conditionId == 0) return;
         if (_resources.Count != _resourceIds.Count || _resources.Count != _unitIds.Count) return;
         if (_resourceIds.Any(x => x == 0) || _unitIds.Any(x => x == 0)) return;
         if (_resources.Any(r => r.Count < 1)) return;
 
-        // 1) ШАПКА: навигации только с Id
-        var docToSend = new Document
+        // 1) ШАПКА: отправляем ТОЛЬКО FK + скаляры (без навигаций!)
+        var payloadDoc = new
         {
             Id = Id, // 0 для создания
             Number = _document.Number,
-            Date = _document.Date,
-            TypeDoc = new TypeDoc { Id = _typeDocId },
-            Client = new Client { Id = _clientId },
-            Condition = new Condition { Id = _conditionId }
+            Date = _document.Date,          // <-- DateOnly            
+            TypeDocId = _typeDocId,
+            ClientId = _clientId,
+            ConditionId = _conditionId
         };
 
-        // отправляем шапку
         int docId;
+        HttpResponseMessage headResp;
+
+        // ВАЖНО: если у тебя контроллеры под "/api", используй "api/Documents"
         if (Id == 0)
         {
-            // сервер вернёт просто числовой Id
-            var resp = await Http.PostAsJsonAsync("Documents", docToSend);
-            if (!resp.IsSuccessStatusCode)
+            headResp = await Http.PostAsJsonAsync("Documents", payloadDoc);
+            if (!headResp.IsSuccessStatusCode)
             {
-                Console.Error.WriteLine(await resp.Content.ReadAsStringAsync());
+                Console.Error.WriteLine(await headResp.Content.ReadAsStringAsync());
                 return;
             }
-            docId = await resp.Content.ReadFromJsonAsync<int>();
+            // сервер возвращает чистый int
+            docId = await headResp.Content.ReadFromJsonAsync<int>();
         }
         else
         {
-            var resp = await Http.PutAsJsonAsync($"Documents/{Id}", docToSend);
-            if (!resp.IsSuccessStatusCode)
+            headResp = await Http.PutAsJsonAsync($"Documents/{Id}", payloadDoc);
+            if (!headResp.IsSuccessStatusCode)
             {
-                Console.Error.WriteLine(await resp.Content.ReadAsStringAsync());
+                Console.Error.WriteLine(await headResp.Content.ReadAsStringAsync());
                 return;
             }
             docId = Id;
         }
 
-        // 2) СТРОКИ: готовим сущности с навигациями только по Id
-        var rows = new List<Document_resource>(_resources.Count);
+        // 2) СТРОКИ: тоже только FK + поля (никаких навигаций!)
+        var rowsPayload = new List<object>(_resources.Count);
         for (int i = 0; i < _resources.Count; i++)
         {
             var src = _resources[i];
-            rows.Add(new Document_resource
+            rowsPayload.Add(new
             {
-                Id = src.Id,                               // 0 — новая строка
-                DateTime = src.DateTime,
-                Count = src.Count,
-                Document = new Document { Id = docId },    // привязка к документу
-                Resource = new Resource { Id = _resourceIds[i] },
-                Unit = new Unit { Id = _unitIds[i] }
+                Id = src.Id,                 // 0 — новая строка, >0 — обновление
+                DocumentId = docId,
+                ResourceId = _resourceIds[i],
+                UnitId = _unitIds[i],
+                DateTime = src.DateTime.ToUniversalTime(), // важный момент                
+                Count = src.Count
             });
         }
 
-        // отправляем пакетом
-        HttpResponseMessage rowsResp = await Http.PostAsJsonAsync($"Document_resource/bulk/{docId}", rows);
+        // bulk эндпоинт из твоего контроллера: POST api/Document_resource/bulk/{documentId}
+        var rowsResp = await Http.PostAsJsonAsync($"Document_resource/bulk/{docId}", rowsPayload);
         if (!rowsResp.IsSuccessStatusCode)
         {
             Console.Error.WriteLine(await rowsResp.Content.ReadAsStringAsync());
