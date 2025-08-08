@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding; // ← добавь
 using Microsoft.EntityFrameworkCore;
 using ClassLibrary.Date;
 using ClassLibrary.Models;
@@ -12,9 +13,53 @@ public class DocumentsController : ControllerBase
     private readonly AppDbContext _context;
     public DocumentsController(AppDbContext context) => _context = context;
 
-    // GET: api/Documents
-    // Возвращаем список с подгруженными справочниками,
-    // чтобы на клиенте сразу видеть имена (TypeDoc/Client/Condition)
+    // ----------------- HELPERS -----------------
+
+    // Убираем авто-ошибки по вложенным навигациям (кроме *.Id), чтобы успеть догрузить сущности
+    private static void ClearNavErrors(ModelStateDictionary ms)
+    {
+        string[] prefixes = { "TypeDoc.", "Client.", "Condition." };
+        foreach (var p in prefixes)
+            foreach (var k in ms.Keys.Where(k => k.StartsWith(p) && !k.EndsWith(".Id")).ToList())
+                ms.Remove(k);
+    }
+
+    // Догружаем навигации по Id → подставляем «полные» сущности (с Name и т.п.)
+    private async Task<bool> HydrateAsync(Document d)
+    {
+        if (d.TypeDoc?.Id <= 0 || d.Client?.Id <= 0 || d.Condition?.Id <= 0) return false;
+
+        var td = await _context.TypeDoc.FindAsync(d.TypeDoc.Id);
+        var cl = await _context.Client.FindAsync(d.Client.Id);
+        var cn = await _context.Condition.FindAsync(d.Condition.Id);
+
+        if (td is null || cl is null || cn is null) return false;
+
+        d.TypeDoc = td;
+        d.Client = cl;
+        d.Condition = cn;
+        return true;
+    }
+
+    private (bool ok, IActionResult? err) ValidateDocument(Document d)
+    {
+        if (string.IsNullOrWhiteSpace(d.Number))
+            return (false, ValidationProblem((ValidationProblemDetails)new ValidationProblemDetails { Title = "Номер обязателен" }));
+
+        if (d.TypeDoc?.Id <= 0)
+            return (false, ValidationProblem((ValidationProblemDetails)new ValidationProblemDetails { Title = "Не выбран тип документа" }));
+
+        if (d.Client?.Id <= 0)
+            return (false, ValidationProblem((ValidationProblemDetails)new ValidationProblemDetails { Title = "Не выбран клиент" }));
+
+        if (d.Condition?.Id <= 0)
+            return (false, ValidationProblem((ValidationProblemDetails)new ValidationProblemDetails { Title = "Не выбрано состояние" }));
+
+        return (true, null);
+    }
+
+    // ----------------- READ -----------------
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Document>>> GetDocument()
     {
@@ -26,8 +71,6 @@ public class DocumentsController : ControllerBase
             .ToListAsync();
     }
 
-    // GET: api/Documents/5
-    // Одна шапка с навигациями
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Document>> GetDocument(int id)
     {
@@ -41,8 +84,6 @@ public class DocumentsController : ControllerBase
         return document;
     }
 
-    // GET: api/Documents/5/items
-    // Позиции документа (каждая со своими справочниками)
     [HttpGet("{id:int}/items")]
     public async Task<ActionResult<IEnumerable<Document_resource>>> GetItems(int id)
     {
@@ -50,7 +91,7 @@ public class DocumentsController : ControllerBase
         if (!exists) return NotFound();
 
         var items = await _context.Document_resource
-            .Where(r => EF.Property<int>(r, "DocumentId") == id) // shadow FK
+            .Where(r => EF.Property<int>(r, "DocumentId") == id)
             .Include(r => r.Resource)
             .Include(r => r.Unit)
             .ToListAsync();
@@ -58,59 +99,74 @@ public class DocumentsController : ControllerBase
         return items;
     }
 
-    // PUT: api/Documents/5
-    // Обновление только шапки (без позиций)
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> PutDocument(int id, Document document)
+    // ----------------- WRITE -----------------
+
+    // POST: api/Documents  (создание шапки)
+    [HttpPost]
+    public async Task<IActionResult> PostDocument([FromBody] Document doc)
     {
-        if (id != document.Id) return BadRequest();
+        if (doc is null)
+            return BadRequest();
 
-        // Перепривяжем справочники по их Id (ожидается, что в body они пришли с заполненным Id)
-        document.TypeDoc = await _context.TypeDoc.FindAsync(document.TypeDoc.Id) ?? document.TypeDoc;
-        document.Client = await _context.Client.FindAsync(document.Client.Id) ?? document.Client;
-        document.Condition = await _context.Condition.FindAsync(document.Condition.Id) ?? document.Condition;
+        // Подгружаем справочники по Id
+        if (doc.Client?.Id > 0)
+            doc.Client = await _context.Client.FindAsync(doc.Client.Id);
 
-        _context.Entry(document).State = EntityState.Modified;
+        if (doc.TypeDoc?.Id > 0)
+            doc.TypeDoc = await _context.TypeDoc.FindAsync(doc.TypeDoc.Id);
 
-        try { await _context.SaveChangesAsync(); }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!DocumentExists(id)) return NotFound();
-            throw;
-        }
+        if (doc.Condition?.Id > 0)
+            doc.Condition = await _context.Condition.FindAsync(doc.Condition.Id);
 
+        // Теперь валидация будет работать с полными объектами
+        ModelState.Clear();
+        if (!TryValidateModel(doc))
+            return ValidationProblem(ModelState);
+
+        _context.Document.Add(doc);
+        await _context.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetDocument), new { id = doc.Id }, doc);
+    }
+
+    // PUT: api/Documents/{id}  (обновление шапки)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> PutDocument(int id, [FromBody] Document incoming)
+    {
+        if (id != incoming.Id) return BadRequest();
+
+        ClearNavErrors(ModelState);
+
+        var doc = await _context.Document.FirstOrDefaultAsync(d => d.Id == id);
+        if (doc is null) return NotFound();
+
+        // простые поля
+        doc.Number = incoming.Number;
+        doc.Date = incoming.Date;
+
+        // проверка выбранных Id
+        var v = ValidateDocument(incoming);
+        if (!v.ok) return v.err;
+
+        // гидрируем навигации по Id из incoming
+        var td = await _context.TypeDoc.FindAsync(incoming.TypeDoc.Id);
+        var cl = await _context.Client.FindAsync(incoming.Client.Id);
+        var cn = await _context.Condition.FindAsync(incoming.Condition.Id);
+        if (td is null || cl is null || cn is null)
+            return ValidationProblem(new ValidationProblemDetails { Title = "Справочник не найден" });
+
+        doc.TypeDoc = td;
+        doc.Client = cl;
+        doc.Condition = cn;
+
+        // пере-валидация уже обновлённого doc (с полными навигациями)
+        ModelState.Clear();
+        if (!TryValidateModel(doc)) return ValidationProblem(ModelState);
+
+        await _context.SaveChangesAsync();
         return NoContent();
     }
 
-    // POST: api/Documents
-    // Создание только шапки (без позиций)
-    [HttpPost]
-    public async Task<ActionResult<Document>> PostDocument(Document document)
-    {
-        if (!await _context.TypeDoc.AnyAsync(x => x.Id == document.TypeDoc.Id))
-            return BadRequest($"Invalid TypeDocId: {document.TypeDoc.Id}");
-        if (!await _context.Client.AnyAsync(x => x.Id == document.Client.Id))
-            return BadRequest($"Invalid ClientId: {document.Client.Id}");
-        if (!await _context.Condition.AnyAsync(x => x.Id == document.Condition.Id))
-            return BadRequest($"Invalid ConditionId: {document.Condition.Id}");
-
-        // прикрепляем существующие записи, чтобы EF не пытался их создать
-        _context.Attach(new TypeDoc { Id = document.TypeDoc.Id });
-        _context.Attach(new Client { Id = document.Client.Id });
-        _context.Attach(new Condition { Id = document.Condition.Id });
-
-        // переназначаем навигации на прикреплённые сущности
-        document.TypeDoc = await _context.TypeDoc.FindAsync(document.TypeDoc.Id)!;
-        document.Client = await _context.Client.FindAsync(document.Client.Id)!;
-        document.Condition = await _context.Condition.FindAsync(document.Condition.Id)!;
-
-        _context.Document.Add(document);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetDocument), new { id = document.Id }, document);
-    }
-
-    // DELETE: api/Documents/5
+    // DELETE без изменений
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteDocument(int id)
     {
@@ -122,40 +178,49 @@ public class DocumentsController : ControllerBase
         return NoContent();
     }
 
-    private bool DocumentExists(int id) => _context.Document.Any(e => e.Id == id);
-
-    // --------------------------
-    // ТРАНЗАКЦИОННЫЕ эндпоинты
-    // --------------------------
-
-    // Транспортная модель только для запроса/ответа (БД-модель не меняем!)
+    // ------------- транзакционные with-items (как у тебя), но уже гидрируют -------------
     public class DocumentWithItems
     {
         public Document Document { get; set; } = default!;
         public List<Document_resource> Items { get; set; } = new();
     }
 
-    // POST: api/Documents/with-items
-    // Создание шапки и строк одним вызовом, в ОДНОЙ транзакции
     [HttpPost("with-items")]
     public async Task<ActionResult> CreateWithItems([FromBody] DocumentWithItems payload)
     {
+        ClearNavErrors(ModelState);
+
+        var v = ValidateDocument(payload.Document);
+        //if (!v.ok) return v.err;
+
+        if (!await HydrateAsync(payload.Document))
+            return ValidationProblem(new ValidationProblemDetails { Title = "Неверные Id справочников" });
+
+        // повторная валидация полной шапки
+        ModelState.Clear();
+        if (!TryValidateModel(payload.Document)) return ValidationProblem(ModelState);
+
         await using var tx = await _context.Database.BeginTransactionAsync();
 
-        // Привязываем справочники для шапки
-        payload.Document.TypeDoc = await _context.TypeDoc.FindAsync(payload.Document.TypeDoc.Id) ?? payload.Document.TypeDoc;
-        payload.Document.Client = await _context.Client.FindAsync(payload.Document.Client.Id) ?? payload.Document.Client;
-        payload.Document.Condition = await _context.Condition.FindAsync(payload.Document.Condition.Id) ?? payload.Document.Condition;
-
         _context.Document.Add(payload.Document);
-        await _context.SaveChangesAsync(); // нужен Id документа
+        await _context.SaveChangesAsync(); // нужен Id
 
-        // Добавляем строки, связываем навигацией Document (shadow FK запишется сам)
         foreach (var row in payload.Items)
         {
-            row.Document = payload.Document;
-            row.Resource = await _context.Resource.FindAsync(row.Resource.Id) ?? row.Resource;
-            row.Unit = await _context.Unit.FindAsync(row.Unit.Id) ?? row.Unit;
+            // гидра ресурсов/единиц
+            var res = await _context.Resource.FindAsync(row.Resource.Id);
+            var uni = await _context.Unit.FindAsync(row.Unit.Id);
+            if (res is null || uni is null)
+                return ValidationProblem(new ValidationProblemDetails { Title = "Ресурс/Единица не найдены" });
+
+            row.Document = payload.Document; // полная шапка
+            row.Resource = res;
+            row.Unit = uni;
+
+            // валидируем строку
+            ModelState.Clear();
+            if (!TryValidateModel(row)) return ValidationProblem(ModelState);
+
             _context.Document_resource.Add(row);
         }
 
@@ -165,53 +230,65 @@ public class DocumentsController : ControllerBase
         return CreatedAtAction(nameof(GetDocument), new { id = payload.Document.Id }, new { payload.Document.Id });
     }
 
-    // PUT: api/Documents/with-items/5
-    // Обновление шапки и синхронизация строк (add/update/delete) в ОДНОЙ транзакции
     [HttpPut("with-items/{id:int}")]
     public async Task<IActionResult> UpdateWithItems(int id, [FromBody] DocumentWithItems payload)
     {
-        await using var tx = await _context.Database.BeginTransactionAsync();
+        ClearNavErrors(ModelState);
 
-        var doc = await _context.Document
-            .FirstOrDefaultAsync(d => d.Id == id);
-
+        var doc = await _context.Document.FirstOrDefaultAsync(d => d.Id == id);
         if (doc is null) return NotFound();
 
-        // обновляем шапку (перепривязываем справочники)
+        // обновляем шапку
         doc.Number = payload.Document.Number;
         doc.Date = payload.Document.Date;
-        doc.TypeDoc = await _context.TypeDoc.FindAsync(payload.Document.TypeDoc.Id) ?? doc.TypeDoc;
-        doc.Client = await _context.Client.FindAsync(payload.Document.Client.Id) ?? doc.Client;
-        doc.Condition = await _context.Condition.FindAsync(payload.Document.Condition.Id) ?? doc.Condition;
 
-        // Текущие строки документа
+        var td = await _context.TypeDoc.FindAsync(payload.Document.TypeDoc.Id);
+        var cl = await _context.Client.FindAsync(payload.Document.Client.Id);
+        var cn = await _context.Condition.FindAsync(payload.Document.Condition.Id);
+        if (td is null || cl is null || cn is null)
+            return ValidationProblem(new ValidationProblemDetails { Title = "Справочник не найден" });
+
+        doc.TypeDoc = td; doc.Client = cl; doc.Condition = cn;
+
+        // валидируем шапку уже «полную»
+        ModelState.Clear();
+        if (!TryValidateModel(doc)) return ValidationProblem(ModelState);
+
+        await using var tx = await _context.Database.BeginTransactionAsync();
+
         var existing = await _context.Document_resource
             .Where(r => EF.Property<int>(r, "DocumentId") == id)
             .ToListAsync();
 
-        // Индексируем входящие по Id
-        var incomingById = payload.Items.Where(x => x.Id != 0)
-            .ToDictionary(x => x.Id);
+        var incomingById = payload.Items.Where(x => x.Id != 0).ToDictionary(x => x.Id);
 
-        // Удаляем отсутствующие
+        // удалить отсутствующие
         foreach (var ex in existing)
             if (!incomingById.ContainsKey(ex.Id))
                 _context.Document_resource.Remove(ex);
 
-        // Добавляем/обновляем
+        // upsert
         foreach (var row in payload.Items)
         {
+            var res = await _context.Resource.FindAsync(row.Resource.Id);
+            var uni = await _context.Unit.FindAsync(row.Unit.Id);
+            if (res is null || uni is null)
+                return ValidationProblem(new ValidationProblemDetails { Title = "Ресурс/Единица не найдены" });
+
             if (row.Id == 0)
             {
-                // новая строка
                 var newRow = new Document_resource
                 {
                     DateTime = row.DateTime,
-                    Count = row.Count
+                    Count = row.Count,
+                    Document = doc,
+                    Resource = res,
+                    Unit = uni
                 };
-                newRow.Document = doc;
-                newRow.Resource = await _context.Resource.FindAsync(row.Resource.Id) ?? row.Resource;
-                newRow.Unit = await _context.Unit.FindAsync(row.Unit.Id) ?? row.Unit;
+
+                ModelState.Clear();
+                if (!TryValidateModel(newRow)) return ValidationProblem(ModelState);
+
                 _context.Document_resource.Add(newRow);
             }
             else
@@ -219,8 +296,12 @@ public class DocumentsController : ControllerBase
                 var ex = existing.First(x => x.Id == row.Id);
                 ex.DateTime = row.DateTime;
                 ex.Count = row.Count;
-                ex.Resource = await _context.Resource.FindAsync(row.Resource.Id) ?? ex.Resource;
-                ex.Unit = await _context.Unit.FindAsync(row.Unit.Id) ?? ex.Unit;
+                ex.Document = doc;
+                ex.Resource = res;
+                ex.Unit = uni;
+
+                ModelState.Clear();
+                if (!TryValidateModel(ex)) return ValidationProblem(ModelState);
             }
         }
 

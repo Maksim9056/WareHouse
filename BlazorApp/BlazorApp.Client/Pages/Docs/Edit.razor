@@ -198,30 +198,74 @@ else
 
     async Task Save()
     {
-        if (string.IsNullOrWhiteSpace(_document?.Number))
-            return; // номер обязателен
+        if (_document is null || _resources is null) return;
 
-        // Проверка, что выбраны существующие значения из справочников
-        if (!_typeDocs.Any(t => t.Id == _typeDocId) ||
-            !_clients.Any(c => c.Id == _clientId) ||
-            !_conditions.Any(s => s.Id == _conditionId))
+        // валидация
+        if (string.IsNullOrWhiteSpace(_document.Number)) return;
+        if (_typeDocId == 0 || _clientId == 0 || _conditionId == 0) return;
+        if (_resources.Count != _resourceIds.Count || _resources.Count != _unitIds.Count) return;
+        if (_resourceIds.Any(x => x == 0) || _unitIds.Any(x => x == 0)) return;
+        if (_resources.Any(r => r.Count < 1)) return;
+
+        // 1) ШАПКА: навигации только с Id
+        var docToSend = new Document
         {
-            Console.WriteLine("Ошибка: выбраны несуществующие значения справочников");
+            Id = Id, // 0 для создания
+            Number = _document.Number,
+            Date = _document.Date,
+            TypeDoc = new TypeDoc { Id = _typeDocId },
+            Client = new Client { Id = _clientId },
+            Condition = new Condition { Id = _conditionId }
+        };
+
+        // отправляем шапку
+        int docId;
+        if (Id == 0)
+        {
+            // сервер вернёт просто числовой Id
+            var resp = await Http.PostAsJsonAsync("Documents", docToSend);
+            if (!resp.IsSuccessStatusCode)
+            {
+                Console.Error.WriteLine(await resp.Content.ReadAsStringAsync());
+                return;
+            }
+            docId = await resp.Content.ReadFromJsonAsync<int>();
+        }
+        else
+        {
+            var resp = await Http.PutAsJsonAsync($"Documents/{Id}", docToSend);
+            if (!resp.IsSuccessStatusCode)
+            {
+                Console.Error.WriteLine(await resp.Content.ReadAsStringAsync());
+                return;
+            }
+            docId = Id;
+        }
+
+        // 2) СТРОКИ: готовим сущности с навигациями только по Id
+        var rows = new List<Document_resource>(_resources.Count);
+        for (int i = 0; i < _resources.Count; i++)
+        {
+            var src = _resources[i];
+            rows.Add(new Document_resource
+            {
+                Id = src.Id,                               // 0 — новая строка
+                DateTime = src.DateTime,
+                Count = src.Count,
+                Document = new Document { Id = docId },    // привязка к документу
+                Resource = new Resource { Id = _resourceIds[i] },
+                Unit = new Unit { Id = _unitIds[i] }
+            });
+        }
+
+        // отправляем пакетом
+        HttpResponseMessage rowsResp = await Http.PostAsJsonAsync($"Document_resource/bulk/{docId}", rows);
+        if (!rowsResp.IsSuccessStatusCode)
+        {
+            Console.Error.WriteLine(await rowsResp.Content.ReadAsStringAsync());
             return;
         }
 
-        if (_typeDocId == 0 || _clientId == 0 || _conditionId == 0)
-            return; // выбери все справочники
-
-        _document!.TypeDoc = new TypeDoc { Id = _typeDocId };
-        _document.Client = new Client { Id = _clientId };
-        _document.Condition = new Condition { Id = _conditionId };
-
-        var resp = Id == 0
-            ? await Http.PostAsJsonAsync("Documents", _document)
-            : await Http.PutAsJsonAsync($"Documents/{Id}", _document);
-
-        resp.EnsureSuccessStatusCode();
         Nav.NavigateTo("/Document");
     }
 
