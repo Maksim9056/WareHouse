@@ -1,7 +1,51 @@
-﻿@page "/Receipts"
-@rendermode InteractiveWebAssembly
-<h3>Поступления</h3>
+﻿@* @page "/documents"
+@using ClassLibrary.Models
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Документы</h3>
+
+<div class="mb-3">
+    <button class="btn btn-success" @onclick="() => Nav.NavigateTo("/documents/add");)>Добавить</button>
+</div>
+
+@if (docs is null)
+{
+    <p>Загрузка...</p>
+}
+else
+{
+    <table class="document-table">
+        <thead>
+        <tr>
+            <th>Тип</th>
+            <th>Номер</th>
+            <th>Дата</th>
+            <th>Клиент</th>
+            <th>Состояние</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var d in docs)
+        {
+            <tr class="clickable-row" @onclick="() => Nav.NavigateTo($"/documents/{d.Id}")">
+                <td>@d.TypeDoc?.Name</td>
+                <td>@d.Number</td>
+                <td>@d.Date.ToShortDateString()</td>
+                <td>@d.Client?.Name</td>
+                <td>@d.Condition?.Name</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
 
 @code {
+    IEnumerable<Document> docs;
 
+    protected override async Task OnInitializedAsync()
+    {
+        docs = await Http.GetFromJsonAsync<IEnumerable<Document>>("Documents");
+    }
 }
+ *@

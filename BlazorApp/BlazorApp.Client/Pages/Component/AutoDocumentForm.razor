@@ -1,0 +1,478 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using ClassLibrary.Models
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+@if (_loading)
+{
+    <p>Загрузка...</p>
+}
+else
+{
+    <EditForm Model="_doc" OnValidSubmit="SaveAsync" FormName="@ResolvedFormName">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <!-- ШАПКА ДОКУМЕНТА -->
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Тип документа</label>
+                <select class="form-select" @bind="_typeDocId" disabled="@(!IsCreate || IsReadOnly)">
+                    <option value="">— выберите —</option>
+                    @foreach (var td in _typeDocsFiltered)
+                    {
+                        <option value="@td.Id">@td.Name</option>
+                    }
+                </select>
+                @if (_typeDocId is null)
+                {
+                    <div class="text-danger small">Выберите тип документа</div>
+                }
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Номер</label>
+                <input class="form-control"
+                       value="@_doc.Number"
+                       @oninput="e => _doc.Number = e.Value?.ToString() ?? string.Empty"
+                       disabled="@IsReadOnly" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Дата</label>
+                <InputDate class="form-control" @bind-Value="_doc.Date" disabled="@IsReadOnly" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Клиент</label>
+                <select class="form-select" @bind="_clientId" disabled="@IsReadOnly">
+                    <option value="">— выберите —</option>
+                    @foreach (var c in _clients)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Состояние</label>
+                <select class="form-select" @bind="_conditionId" disabled="@IsReadOnly">
+                    <option value="">— выберите —</option>
+                    @foreach (var s in _conditions)
+                    {
+                        <option value="@s.Id">@s.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <hr class="my-3" />
+
+        <!-- СТРОКИ ДОКУМЕНТА -->
+        <h5 class="mb-2">Позиции</h5>
+
+        @if (!IsReadOnly)
+        {
+            <div class="row g-2 align-items-end mb-2">
+                <div class="col-md-5">
+                    <label class="form-label">Ресурс</label>
+                    <select class="form-select" @bind="_newResourceId">
+                        <option value="">— ресурс —</option>
+                        @foreach (var r in _resources)
+                        {
+                            <option value="@r.Id">@r.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ед. изм.</label>
+                    <select class="form-select" @bind="_newUnitId">
+                        <option value="">— ед. изм. —</option>
+                        @foreach (var u in _units)
+                        {
+                            <option value="@u.Id">@u.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Кол-во</label>
+                    <input class="form-control" type="number" step="1" min="1" @bind="_newCount" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-primary w-100" @onclick="AddLine">Добавить</button>
+                </div>
+            </div>
+        }
+
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th style="width:45%">Ресурс</th>
+                    <th style="width:20%">Ед. изм.</th>
+                    <th style="width:20%">Кол-во</th>
+                    @if (!IsReadOnly)
+                    {
+                        <th style="width:15%"></th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (_lines.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-muted">Нет строк</td></tr>
+                }
+                else
+                {
+                    @for (int i = 0; i < _lines.Count; i++)
+                    {
+                        <tr>
+                            <td>@_lines[i].Resource.Name</td>
+                            <td>@_lines[i].Unit.Name</td>
+                            <td>
+                                @if (IsReadOnly)
+                                {
+                                    @_lines[i].Count
+                                }
+                                else
+                                {
+                                    <input class="form-control"
+                                           type="number" step="1" min="1"
+                                           value="@_lines[i].Count"
+                                           @oninput="(e => OnQtyChange(i, e.Value?.ToString()))" />
+                                }
+                            </td>
+                            @if (!IsReadOnly)
+                            {
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="(() => RemoveLine(i))">Удалить</button>
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+        @if (IsShipment && _lines.Count == 0 && !IsReadOnly)
+        {
+            <div class="text-danger small">Отгрузка не может быть пустой.</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger mt-3">@_error</div>
+        }
+
+        <div class="mt-3 d-flex gap-2">
+            @if (!IsReadOnly)
+            {
+                <button class="btn btn-success" type="submit">Сохранить</button>
+            }
+
+            @if (IsShipment && IsEdit && !IsReadOnly)
+            {
+                <button class="btn btn-outline-primary" type="button" @onclick="SignAsync">Подписать</button>
+                <button class="btn btn-outline-secondary" type="button" @onclick="UnsignAsync">Отозвать</button>
+            }
+
+            <button class="btn btn-warning" type="button" @onclick="ArchiveAsync" disabled="@IsCreate">К архиву</button>
+            <button class="btn btn-secondary" type="button" @onclick="Back">Отмена</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    // ===== РЕЖИМЫ =====
+    public enum FormMode { Create, Edit, View }
+
+    [Parameter] public FormMode Mode { get; set; } = FormMode.Edit;
+    [Parameter] public int? Id { get; set; } // для Edit/View
+    [Parameter] public string ApiPath { get; set; } = "Documents";
+    [Parameter] public string FormName { get; set; } = "documents-form";
+
+    // ===== ЛОКАЛЬНОЕ СОСТОЯНИЕ =====
+    bool _loading = true;
+    string? _error;
+
+    Document _doc = new();
+    List<Document_resource> _lines = new();
+
+    List<TypeDoc> _typeDocs = new();
+    List<TypeDoc> _typeDocsFiltered = new();
+    List<Client> _clients = new();
+    List<Condition> _conditions = new();
+    List<Resource> _resources = new();
+    List<Unit> _units = new();
+
+    int? _typeDocId;
+    int? _clientId;
+    int? _conditionId;
+
+    int? _newResourceId;
+    int? _newUnitId;
+    int _newCount = 1;
+
+    bool IsCreate => Mode == FormMode.Create;
+    bool IsEdit => Mode == FormMode.Edit && Id is not null;
+    bool IsReadOnly => Mode == FormMode.View;
+    string ResolvedFormName => string.IsNullOrWhiteSpace(FormName) ? "documents-form" : FormName;
+
+    bool IsShipment => GetTypeName().Equals("Отгрузка", StringComparison.OrdinalIgnoreCase);
+    bool IsReceipt => GetTypeName().Equals("Поступление", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        // 1) справочники
+        var tdTask = Http.GetFromJsonAsync<List<TypeDoc>>("TypeDocs");
+        var clTask = Http.GetFromJsonAsync<List<Client>>("Clients");
+        var csTask = Http.GetFromJsonAsync<List<Condition>>("Conditions");
+        var rsTask = Http.GetFromJsonAsync<List<Resource>>("Resources");
+        var unTask = Http.GetFromJsonAsync<List<Unit>>("Units");
+
+        await Task.WhenAll(tdTask!, clTask!, csTask!, rsTask!, unTask!);
+
+        _typeDocs = tdTask!.Result ?? new();
+        _clients = clTask!.Result ?? new();
+        _conditions = csTask!.Result ?? new();
+        _resources = rsTask!.Result ?? new();
+        _units = unTask!.Result ?? new();
+
+        // фильтруем типы: только Поступление и Отгрузка
+        _typeDocsFiltered = _typeDocs
+            .Where(t => t.Name.Equals("Поступление", StringComparison.OrdinalIgnoreCase)
+                     || t.Name.Equals("Отгрузка", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // 2) документ + строки
+        if (IsCreate)
+        {
+            _doc = new Document { Date = DateTime.Today };
+            _lines = new();
+        }
+        else
+        {
+            if (Id is null) throw new InvalidOperationException("Id обязателен для Edit/View");
+
+            _doc = await Http.GetFromJsonAsync<Document>($"{ApiPath}/{Id}");
+            _lines = await Http.GetFromJsonAsync<List<Document_resource>>($"{ApiPath}/{Id}/lines") ?? new();
+        }
+
+        // 3) привязки select'ов
+        _typeDocId = _doc?.TypeDoc?.Id;
+        _clientId = _doc?.Client?.Id;
+        _conditionId = _doc?.Condition?.Id;
+
+        _loading = false;
+    }
+
+    // ===== ЛИНИИ =====
+    void AddLine()
+    {
+        if (IsReadOnly) return;
+        if (_newResourceId is null or 0 || _newUnitId is null or 0 || _newCount <= 0) return;
+
+        var r = _resources.FirstOrDefault(x => x.Id == _newResourceId);
+        var u = _units.FirstOrDefault(x => x.Id == _newUnitId);
+        if (r is null || u is null) return;
+
+        _lines.Add(new Document_resource
+        {
+            Resource = r,
+            Unit = u,
+            Count = _newCount
+        });
+
+        _newResourceId = null;
+        _newUnitId = null;
+        _newCount = 1;
+        StateHasChanged();
+    }
+
+    void RemoveLine(int index)
+    {
+        if (IsReadOnly) return;
+        if (index >= 0 && index < _lines.Count) _lines.RemoveAt(index);
+    }
+
+    void OnQtyChange(int idx, string? raw)
+    {
+        if (IsReadOnly) return;
+        if (int.TryParse(raw, out var v) && v > 0) _lines[idx].Count = v;
+    }
+
+    // ===== SAVE / SIGN / UNSIGN / ARCHIVE =====
+    async Task SaveAsync()
+    {
+        _error = null;
+
+        // в отгрузке строки обязаны быть
+        if (IsShipment && _lines.Count == 0)
+        {
+            _error = "Отгрузка не может быть пустой.";
+            return;
+        }
+
+        // синхронизируем ссылки из id
+        _doc.TypeDoc = (_typeDocId is int tid) ? _typeDocs.FirstOrDefault(x => x.Id == tid) : null;
+        _doc.Client = (_clientId is int cid) ? _clients.FirstOrDefault(x => x.Id == cid) : null;
+        _doc.Condition = (_conditionId is int sid) ? _conditions.FirstOrDefault(x => x.Id == sid) : null;
+
+        try
+        {
+            if (IsCreate)
+            {
+                // 1) создаём документ
+                var resp = await Http.PostAsJsonAsync($"{ApiPath}", _doc);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _error = await resp.Content.ReadAsStringAsync();
+                    return;
+                }
+                var created = await resp.Content.ReadFromJsonAsync<Document>();
+                var newId = created?.Id ?? 0;
+
+                // 2) создаём строки
+                foreach (var ln in _lines)
+                {
+                    var linePayload = new Document_resource
+                    {
+                        Document = new Document { Id = newId }, // только Id важен на сервере
+                        Resource = new Resource { Id = ln.Resource.Id },
+                        Unit = new Unit { Id = ln.Unit.Id },
+                        Count = ln.Count,
+                        DateTime = DateTime.Now
+                    };
+                    var lineResp = await Http.PostAsJsonAsync($"{ApiPath}/{newId}/lines", linePayload);
+                    if (!lineResp.IsSuccessStatusCode)
+                    {
+                        _error = await lineResp.Content.ReadAsStringAsync();
+                        return;
+                    }
+                }
+
+                Back();
+                return;
+            }
+
+            if (IsEdit && Id is int id)
+            {
+                // 1) сохраняем шапку
+                var resp = await Http.PutAsJsonAsync($"{ApiPath}/{id}", _doc);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _error = await resp.Content.ReadAsStringAsync();
+                    return;
+                }
+
+                // 2) строки.
+                // Предполагаем на сервере есть:
+                //   GET    /Documents/{id}/lines
+                //   POST   /Documents/{id}/lines
+                //   PUT    /Documents/{id}/lines/{lineId}
+                //   DELETE /Documents/{id}/lines/{lineId}
+                var existing = await Http.GetFromJsonAsync<List<Document_resource>>($"{ApiPath}/{id}/lines") ?? new();
+
+                // (a) обновить/добавить
+                foreach (var ln in _lines)
+                {
+                    var ex = existing.FirstOrDefault(x => x.Id == ln.Id);
+                    if (ex is null)
+                    {
+                        // новый
+                        var createPayload = new Document_resource
+                        {
+                            Document = new Document { Id = id },
+                            Resource = new Resource { Id = ln.Resource.Id },
+                            Unit = new Unit { Id = ln.Unit.Id },
+                            Count = ln.Count,
+                            DateTime = DateTime.Now
+                        };
+                        var cr = await Http.PostAsJsonAsync($"{ApiPath}/{id}/lines", createPayload);
+                        if (!cr.IsSuccessStatusCode)
+                        {
+                            _error = await cr.Content.ReadAsStringAsync();
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // update
+                        ex.Count = ln.Count;
+                        ex.Resource = new Resource { Id = ln.Resource.Id };
+                        ex.Unit = new Unit { Id = ln.Unit.Id };
+                        var up = await Http.PutAsJsonAsync($"{ApiPath}/{id}/lines/{ex.Id}", ex);
+                        if (!up.IsSuccessStatusCode)
+                        {
+                            _error = await up.Content.ReadAsStringAsync();
+                            return;
+                        }
+                    }
+                }
+
+                // (b) удалить отсутствующие
+                var toDelete = existing.Where(ex => !_lines.Any(l => l.Id == ex.Id)).ToList();
+                foreach (var del in toDelete)
+                {
+                    var dr = await Http.DeleteAsync($"{ApiPath}/{id}/lines/{del.Id}");
+                    if (!dr.IsSuccessStatusCode)
+                    {
+                        _error = await dr.Content.ReadAsStringAsync();
+                        return;
+                    }
+                }
+
+                Back();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    async Task SignAsync()
+    {
+        if (!IsShipment || !IsEdit || Id is null) return;
+        _error = null;
+        var resp = await Http.PostAsync($"{ApiPath}/{Id}/sign", null);
+        if (!resp.IsSuccessStatusCode)
+        {
+            _error = await resp.Content.ReadAsStringAsync(); // недостаточно ресурса и т.п.
+            return;
+        }
+        Back();
+    }
+
+    async Task UnsignAsync()
+    {
+        if (!IsShipment || !IsEdit || Id is null) return;
+        _error = null;
+        var resp = await Http.PostAsync($"{ApiPath}/{Id}/unsign", null);
+        if (!resp.IsSuccessStatusCode)
+        {
+            _error = await resp.Content.ReadAsStringAsync();
+            return;
+        }
+        Back();
+    }
+
+    async Task ArchiveAsync()
+    {
+        if (IsCreate || Id is null) return;
+        _error = null;
+        var resp = await Http.PutAsync($"{ApiPath}/{Id}/archive", null);
+        if (!resp.IsSuccessStatusCode)
+        {
+            _error = await resp.Content.ReadAsStringAsync();
+            return;
+        }
+        Back();
+    }
+
+    void Back() => Nav.NavigateTo("/documents");
+
+    string GetTypeName()
+        => _typeDocs.FirstOrDefault(t => t.Id == _typeDocId)?.Name
+           ?? _doc?.TypeDoc?.Name
+           ?? string.Empty;
+}

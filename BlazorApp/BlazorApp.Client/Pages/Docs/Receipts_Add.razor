@@ -1,0 +1,21 @@
+﻿@page "/documents/add"
+@using BlazorApp.Client.Pages.Component
+@using ClassLibrary.Models
+@using BlazorApp.Client.Pages.Component
+@using ClassLibrary.Models;
+@inject HttpClient HttpClient
+@inject NavigationManager NavManager
+<h3>Создание документа</h3>
+
+<AutoDocumentForm Mode="AutoDocumentForm.FormMode.Create"
+                  ApiPath="Documents"
+                  FormName="document-create" />
+
+
+@code {
+    Task OnSaved(Document d)
+    {
+        NavManager.NavigateTo("/Documents"); // куда вернуться
+        return Task.CompletedTask;
+    }
+}
