@@ -1,0 +1,61 @@
+﻿@page "/Unit/Edit/{Id:int}"
+@using BlazorApp.Client.Pages.Component
+@rendermode InteractiveWebAssembly
+@using ClassLibrary.Models
+@inject NavigationManager NavManager
+@inject HttpClient HttpClient
+<h3>  Единицы измерения</h3>
+
+<AutoRefEdit TRef="Unit"
+             Id="Id"
+             ApiPath="Unit"
+             ReferenceDictionaries="refDicts"
+             FormName="unit-edit"
+             OnSaved="AfterSave">
+    <!-- ВАЖНО: имя формы -->
+    <ExtraButtons>
+        <button class="btn btn-warning" @onclick="Archive">К архиву</button>
+    </ExtraButtons>
+</AutoRefEdit>
+
+
+@code {
+    [Parameter]
+
+    public int Id { get; set; }
+    Unit Unit;
+    Dictionary<Type, IEnumerable<BaseRef>> refDicts = new();
+
+    Task AfterSave(Unit r)
+    {
+        NavManager.NavigateTo("Unit");
+        return Task.CompletedTask;
+    }
+
+    async Task Archive()
+    {
+        // твоя логика архивации
+        // await Http.PutAsJsonAsync($"Resources/{Id}/archive", new { });
+        NavManager.NavigateTo("/Unit");
+    }
+
+
+    
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // https://localhost:7166/api/
+            var client = await HttpClient.GetFromJsonAsync<Unit>($"Unit/{Id}");
+            Unit = client;
+            var clients = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
+            refDicts[typeof(Condition)] = clients!;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+
+    }
+}

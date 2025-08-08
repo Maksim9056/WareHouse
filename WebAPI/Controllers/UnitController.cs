@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using ClassLibrary.Date;
+using ClassLibrary.Models;
+using Elfie.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ClassLibrary.Date;
-using ClassLibrary.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace WebAPI.Controllers
 {
@@ -25,14 +26,14 @@ namespace WebAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Unit>>> GetUnit_of_measurement()
         {
-            return await _context.Unit.ToListAsync();
+            return await _context.Unit.Include(u =>u.condition).ToListAsync();
         }
 
         // GET: api/Unit_of_measurement/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Unit>> GetUnit_of_measurement(int id)
         {
-            var unit_of_measurement = await _context.Unit.FindAsync(id);
+            var unit_of_measurement = await _context.Unit.Include(u => u.condition).FirstOrDefaultAsync(u => u.Id == id);
 
             if (unit_of_measurement == null)
             {
@@ -51,6 +52,7 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
+            unit_of_measurement.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == unit_of_measurement.condition.Id);
 
             _context.Entry(unit_of_measurement).State = EntityState.Modified;
 
@@ -78,6 +80,8 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Unit>> PostUnit_of_measurement(Unit unit_of_measurement)
         {
+            unit_of_measurement.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == unit_of_measurement.condition.Id);
+
             _context.Unit.Add(unit_of_measurement);
             await _context.SaveChangesAsync();
 

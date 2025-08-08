@@ -1,9 +1,11 @@
 ﻿@page "/Resource/{Id:int}"
+@using BlazorApp.Client.Pages.Component
+@using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models
 @rendermode InteractiveWebAssembly
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
-
+@* 
 <h3>Редактирование записи ресурсов </h3>
 
 <div class="mb-3">
@@ -39,17 +41,32 @@
         </select>
     </div>
 }
-
-
-
+ *@
+<AutoRefEdit TRef="Resource"
+             Id="Id"
+             ApiPath="Resources"
+             ReferenceDictionaries="refDicts"
+             FormName="resource-edit"    
+             OnSaved="AfterSave" >
+  <!-- ВАЖНО: имя формы -->
+    <ExtraButtons>
+        <button class="btn btn-warning" @onclick="Archive">К архиву</button>
+    </ExtraButtons>
+</AutoRefEdit>
 
 @code {
+    Dictionary<Type, IEnumerable<BaseRef>> refDicts = new();
     [Parameter]
 
     public int Id { get; set; }
     Resource resource = new Resource();
     IEnumerable<Condition> condition;
     Condition conditions = new Condition();
+    Task AfterSave(Resource r)
+    {
+        NavManager.NavigateTo("/Resource");
+        return Task.CompletedTask;
+    }
 
     private async Task Save()
     {
@@ -78,20 +95,25 @@
 
         }
     }
-
-    private async Task OnArchive()
+    async Task Archive()
     {
-
-
-
-        var clien = await HttpClient.PutAsJsonAsync($"Resources/{Id}", resource);
-        // var clien = await HttpClient.DeleteAsync($"Resources/{Id}");
-
-        // // TODO: заменить на реальную логику
-        // // NavManager.NavigateTo("/Clients/Archive");
-        // NavManager.NavigateTo("/Resource");
-
+        // твоя логика архивации
+        // await Http.PutAsJsonAsync($"Resources/{Id}/archive", new { });
+        NavManager.NavigateTo("/Resource");
     }
+    // private async Task OnArchive()
+    // {
+
+
+
+    //     var clien = await HttpClient.PutAsJsonAsync($"Resources/{Id}", resource);
+    //     // var clien = await HttpClient.DeleteAsync($"Resources/{Id}");
+
+    //     // // TODO: заменить на реальную логику
+    //     // // NavManager.NavigateTo("/Clients/Archive");
+    //     // NavManager.NavigateTo("/Resource");
+
+    // }
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,7 +125,7 @@
             conditions = resource.condition;
             var clients = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
             condition = clients;
-
+            refDicts[typeof(Condition)] = clients!;
         }
         catch (Exception e)
         {

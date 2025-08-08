@@ -1,51 +1,19 @@
-﻿@page "/Resource/add"
+﻿@page "/Unit/Add"
+<h3> Создать Единицы измерения</h3>
 @using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models
 @rendermode InteractiveWebAssembly
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
 
-@* <h3>Ресурсы </h3>
-
-<div class="mb-3">
-    <button class="btn btn-success me-2" @onclick="() => Save()">Сохранить</button>
-</div>
-<label>Название</label>
-
-@if (condition != null)
-{
-    <input @bind="resource.Name" />
-
-
-    <label>Код</label>
-
-    <input @bind="resource.Code" />
-
-    <div class="form-group">
-        <label >Состояние</label>
-        <select @bind="conditions.Id" >
-
-            <option value="">Выберите состояние</option>
-
-            @foreach (var s in condition)
-            {
-
-                <option value="@s.Id">@s.Name</option>
-
-            }
-
-        </select>
-    </div>
-} *@
-<h3>Создать ресурс</h3>
 @if (conditions == null)
 {
     <p>Загрузка...</p>
 }
 else
 {
-    <AutoRefForm TRef="Resource"
-                 Model="resource"
+    <AutoRefForm TRef="Unit"
+                 Model="Unit"
                  ReferenceDictionaries="refDicts"
                  OnValidSubmit="Save" />
 }
@@ -53,7 +21,7 @@ else
 
 
 @code {
-    Resource resource = new Resource();
+    Unit Unit = new Unit();
     IEnumerable<Condition> condition ;
     Condition conditions = new Condition();
     Dictionary<Type, IEnumerable<BaseRef>> refDicts;
@@ -67,10 +35,10 @@ else
 
            
              
-                var clien = await HttpClient.PostAsJsonAsync($"Resources", resource);
+                var clien = await HttpClient.PostAsJsonAsync($"Unit", Unit);
 
                 // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
-                NavManager.NavigateTo("/Resource");
+                NavManager.NavigateTo("/Unit");
             }
 
         }

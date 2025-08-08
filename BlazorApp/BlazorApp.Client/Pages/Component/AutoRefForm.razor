@@ -1,0 +1,91 @@
+﻿@typeparam TRef where TRef : BaseRef, new()
+@using System.Reflection
+@using System.ComponentModel.DataAnnotations
+@using ClassLibrary.Models
+
+<EditForm Model="Model" OnValidSubmit="HandleValidSubmit">
+    @foreach (var prop in GetDisplayProps())
+    {
+        <div class="mb-2">
+            <label class="form-label">@GetDisplayName(prop)</label>
+            @if (prop.PropertyType == typeof(string))
+            {
+                <input class="form-control" value="@GetString(prop)" @oninput="@((ChangeEventArgs e) => SetString(prop, e.Value?.ToString()))" />
+            }
+            else if (prop.PropertyType == typeof(int) || prop.PropertyType == typeof(int?))
+            {
+                <input type="number" class="form-control" value="@GetInt(prop)" @oninput="@((ChangeEventArgs e) => SetInt(prop, e.Value))" />
+            }
+            else if (typeof(BaseRef).IsAssignableFrom(prop.PropertyType) && prop.PropertyType != typeof(TRef))
+            {
+                <!-- Для вложенного справочника показываем выпадающий список -->
+                @if (ReferenceDictionaries != null && ReferenceDictionaries.TryGetValue(prop.PropertyType, out var options))
+                {
+                    <select class="form-select" @onchange="@(e => SetReference(prop, e.Value))">
+                        <option value="">Выберите...</option>
+                        @foreach (var refVal in options)
+                        {
+                            var refObj = refVal as BaseRef;
+                            <option value="@refObj.Id" selected="@(GetReferenceId(prop) == refObj.Id)">
+                                @refObj.Name
+                            </option>
+                        }
+                    </select>
+                }
+            }
+        </div>
+    }
+    <button type="submit" class="btn btn-success">Сохранить</button>
+</EditForm>
+
+@code {
+    [Parameter] public TRef Model { get; set; }
+    [Parameter] public EventCallback<TRef> OnValidSubmit { get; set; }
+    [Parameter] public Dictionary<Type, IEnumerable<BaseRef>> ReferenceDictionaries { get; set; }
+
+    private List<PropertyInfo> GetDisplayProps() =>
+        typeof(TRef).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+        .Where(p => p.Name != nameof(BaseRef.Id)).ToList();
+
+    private string GetDisplayName(PropertyInfo prop)
+    {
+        var attr = prop.GetCustomAttribute<DisplayAttribute>();
+        return attr?.Name ?? prop.Name;
+    }
+
+    string GetString(PropertyInfo prop) => prop.GetValue(Model)?.ToString() ?? string.Empty;
+    void SetString(PropertyInfo prop, string value) => prop.SetValue(Model, value);
+
+    int? GetInt(PropertyInfo prop) => prop.GetValue(Model) as int?;
+    void SetInt(PropertyInfo prop, object value)
+    {
+        if (value != null && int.TryParse(value.ToString(), out var result))
+            prop.SetValue(Model, result);
+        else
+            prop.SetValue(Model, null);
+    }
+
+    int? GetReferenceId(PropertyInfo prop)
+    {
+        var refVal = prop.GetValue(Model) as BaseRef;
+        return refVal?.Id;
+    }
+
+    void SetReference(PropertyInfo prop, object value)
+    {
+        if (ReferenceDictionaries != null && ReferenceDictionaries.TryGetValue(prop.PropertyType, out var options) && value != null && int.TryParse(value.ToString(), out int id))
+        {
+            var selected = options.FirstOrDefault(x => x.Id == id);
+            prop.SetValue(Model, selected);
+        }
+        else
+        {
+            prop.SetValue(Model, null);
+        }
+    }
+
+    async Task HandleValidSubmit()
+    {
+        await OnValidSubmit.InvokeAsync(Model);
+    }
+}

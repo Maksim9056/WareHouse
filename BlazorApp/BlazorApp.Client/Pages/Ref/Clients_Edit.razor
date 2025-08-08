@@ -1,0 +1,45 @@
+﻿@page "/Clients/{Id:int}"
+@using BlazorApp.Client.Pages.Component
+@using ClassLibrary.Models
+@inject HttpClient Http
+@inject NavigationManager Nav
+@rendermode InteractiveWebAssembly
+
+<h3>Редактирование клиента</h3>
+
+<AutoRefEdit TRef="Client"
+             Id="Id"
+             ApiPath="Clients"
+             ReferenceDictionaries="refDicts"
+             FormName="clients-edit"
+             OnSaved="AfterSave">
+    <!-- ВАЖНО: имя формы -->
+    <ExtraButtons>
+        <button class="btn btn-warning" @onclick="Archive">К архиву</button>
+    </ExtraButtons>
+</AutoRefEdit>
+
+
+@code {
+    [Parameter] public int Id { get; set; }
+    Dictionary<Type, IEnumerable<BaseRef>> refDicts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var conditions = await Http.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
+        refDicts[typeof(Condition)] = conditions!;
+    }
+
+    Task AfterSave(Client r)
+    {
+        Nav.NavigateTo("Clients");
+        return Task.CompletedTask;
+    }
+
+    async Task Archive()
+    {
+        // твоя логика архивации
+        // await Http.PutAsJsonAsync($"Resources/{Id}/archive", new { });
+        Nav.NavigateTo("/Resource");
+    }
+}

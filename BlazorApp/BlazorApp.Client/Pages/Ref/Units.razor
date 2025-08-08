@@ -1,18 +1,21 @@
-﻿@page "/Conditions"
+﻿@page "/Unit"
 @rendermode InteractiveWebAssembly
+<h3>  Единицы измерения</h3>
 @using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models;
-@inject HttpClient HttpClient
 @inject NavigationManager NavManager
 
-<h3>Состояние</h3>
-@if (сonditions == null)
+
+@inject  HttpClient HttpClient
+
+
+@if (resources == null)
 {
     <p>Загрузка...</p>
 }
 else
 {
-<AutoRefTable TRef="Condition" Items="сonditions" OnRowClick="OnRowClick">
+    <AutoRefTable TRef="Resource" Items="resources" OnRowClick="ShowDetails" >
         <HeaderButtons>
             <button class="btn btn-success me-2" @onclick="OnAdd">Добавить</button>
             <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
@@ -20,23 +23,26 @@ else
 
     </AutoRefTable>
 }
+
+  
+
+
 @code {
-    IEnumerable<Condition> сonditions;
+    IEnumerable<Resource> resources ;
     protected override async Task OnInitializedAsync()
     {
 
         // httpClientFactory.CreateClient("ApiClient");
-        // https://localhost:7166/api/
-        var client = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
-        сonditions = client;
+    // https://localhost:7166/api/
+        var client = await HttpClient.GetFromJsonAsync<IEnumerable<Resource>>("Unit");
+        resources = client;
         // return base.OnInitializedAsync();
     }
-
 
     private void OnAdd()
     {
         // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
-        NavManager.NavigateTo("/Conditions/Add");
+        NavManager.NavigateTo("/Unit/Add");
     }
 
     private void OnArchive()
@@ -45,11 +51,11 @@ else
         // NavManager.NavigateTo("/Clients/Archive");
     }
 
-    void ShowDetails(Condition r)
+    void ShowDetails(Resource r)
     {
         try
         {
-            NavManager.NavigateTo($"/Conditions/Edit/{r.Id}");
+            NavManager.NavigateTo($"/Unit/Edit/{r.Id}");
         }
         catch (Exception e)
         {
@@ -57,12 +63,12 @@ else
         }
     }
 
-    private void OnRowClick(Condition id)
+    private void OnRowClick(int id)
     {
         try
         {
             // Переход на страницу деталей, например /TypeDocs/Details/5
-            NavManager.NavigateTo($"/Conditions/Edit/{id.Id}");
+            NavManager.NavigateTo($"/Unit/Edit/{id}");
         }
         catch (Exception e)
         {
@@ -70,4 +76,3 @@ else
         }
     }
 }
-

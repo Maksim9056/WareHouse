@@ -12,6 +12,8 @@ namespace ClassLibrary.Models
     /// </summary>
     public class Unit : BaseRef
     {
+        [Display(Name = "Состояние")]
+
         public Condition condition { get; set; }
     }
 }

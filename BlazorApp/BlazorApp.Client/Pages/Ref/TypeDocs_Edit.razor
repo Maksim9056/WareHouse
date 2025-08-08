@@ -1,9 +1,10 @@
 ﻿@page "/TypeDocs/Details/{Id:int}"
+@using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models
 @rendermode InteractiveWebAssembly
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
-
+@* 
 <h3>Тип документа</h3>
 
 <div class="mb-3">
@@ -17,8 +18,19 @@
     <input @bind="typedocs.Name" />
 
 }
+ *@
 
-
+<AutoRefEdit TRef="TypeDoc"
+             Id="Id"
+             ApiPath="TypeDocs"
+             ReferenceDictionaries="refDicts"
+             FormName="typedocs-edit"
+             OnSaved="AfterSave">
+    <!-- ВАЖНО: имя формы -->
+    <ExtraButtons>
+        <button class="btn btn-warning" @onclick="Archive">К архиву</button>
+    </ExtraButtons>
+</AutoRefEdit>
 
 
 @code {
@@ -26,7 +38,20 @@
 
     public int Id { get; set; }
     TypeDoc typedocs;
+    Dictionary<Type, IEnumerable<BaseRef>> refDicts = new();
 
+    Task AfterSave(TypeDoc r)
+    {
+        NavManager.NavigateTo("TypeDocs");
+        return Task.CompletedTask;
+    }
+
+    async Task Archive()
+    {
+        // твоя логика архивации
+        // await Http.PutAsJsonAsync($"Resources/{Id}/archive", new { });
+        NavManager.NavigateTo("/TypeDocs");
+    }
     private async Task Save()
     {
         try

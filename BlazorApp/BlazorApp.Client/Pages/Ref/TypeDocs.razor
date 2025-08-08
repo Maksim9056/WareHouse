@@ -1,25 +1,37 @@
 ﻿@page "/TypeDocs"
 @rendermode InteractiveWebAssembly
-
+@using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models;
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
 
-
-
-
-
 <h3>Тип документа</h3>
-<div class="mb-3">
-    <button class="btn btn-success me-2" @onclick="OnAdd">Добавить</button>
-    <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
-</div>
 @if (typedocs == null)
+{
+    <p>Загрузка...</p>
+}
+else
+{
+    <AutoRefTable TRef="TypeDoc" Items="typedocs" OnRowClick="OnRowClick">
+        <HeaderButtons>
+            <button class="btn btn-success me-2" @onclick="OnAdd">Добавить</button>
+            <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
+        </HeaderButtons>
+
+    </AutoRefTable>
+}
+
+
+
+
+@* @if (typedocs == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
+
+
 
     <table class="document-table">
         <!-- задаём ширину колонок -->
@@ -43,7 +55,7 @@ else
     </table>
 
 
-}
+} *@
 
 @code {
     IEnumerable<TypeDoc> typedocs;
@@ -74,12 +86,12 @@ else
         NavManager.NavigateTo("/Clients/Archive");
     }
 
-    private void OnRowClick(int id)
+    private void OnRowClick(TypeDoc id)
     {
         try
         {
         // Переход на страницу деталей, например /TypeDocs/Details/5
-        NavManager.NavigateTo($"/TypeDocs/Details/{id}");
+        NavManager.NavigateTo($"/TypeDocs/Details/{id.Id}");
         }
         catch (Exception e)
         {

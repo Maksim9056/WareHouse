@@ -12,7 +12,9 @@ namespace ClassLibrary.Models
     /// </summary>
     public class Client : BaseRef
     {
+        [Display(Name = "Адрес")]
         public string Address { get; set; }
-        public Condition condition { get; set; }
+        [Display(Name = "Состояние")]
+        public Condition? condition { get; set; }
     }
 }

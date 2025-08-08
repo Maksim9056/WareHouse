@@ -22,10 +22,6 @@
                     }
                 </th>
             }
-            @if (OnRowClick.HasDelegate)
-            {
-                <th></th>
-            }
         </tr>
     </thead>
     <tbody>
@@ -33,17 +29,11 @@
         {
             @foreach (var item in Items)
             {
-                <tr>
+                <tr class="clickable-row" @onclick="() => OnRowClick.InvokeAsync(item)">
                     @foreach (var prop in GetDisplayProps())
                     {
                         <td>
                             @DisplayPropValue(prop, item)
-                        </td>
-                    }
-                    @if (OnRowClick.HasDelegate)
-                    {
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" @onclick="@(() => OnRowClick.InvokeAsync(item))">Открыть</button>
                         </td>
                     }
                 </tr>
@@ -52,13 +42,11 @@
     </tbody>
 </table>
 
-@code { 
-    //document-table table table-striped
+@code {
     [Parameter] public IEnumerable<TRef> Items { get; set; }
     [Parameter] public EventCallback<TRef> OnRowClick { get; set; }
     [Parameter] public RenderFragment HeaderButtons { get; set; }
 
-    // Можно исключать поля, если не нужно показывать (например, Id)
     private List<PropertyInfo> GetDisplayProps() =>
         typeof(TRef).GetProperties(BindingFlags.Public | BindingFlags.Instance)
         .Where(p => p.Name != nameof(BaseRef.Id)).ToList();

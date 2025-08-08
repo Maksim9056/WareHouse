@@ -1,0 +1,74 @@
+﻿@page "/Conditions/Edit/{Id:int}"
+@rendermode InteractiveWebAssembly
+@using BlazorApp.Client.Pages.Component
+@using ClassLibrary.Models;
+
+@inject NavigationManager NavManager
+@inject HttpClient HttpClient
+<h3>Состояние</h3>
+<AutoRefEdit TRef="Condition"
+             Id="Id"
+             ApiPath="Conditions"
+             ReferenceDictionaries="refDicts"
+             FormName="condition-edit"
+             OnSaved="AfterSave" >
+  <!-- ВАЖНО: имя формы -->
+    <ExtraButtons>
+        <button class="btn btn-warning" @onclick="Archive">К архиву</button>
+    </ExtraButtons>
+</AutoRefEdit>
+
+@code {
+    Dictionary<Type, IEnumerable<BaseRef>> refDicts = new();
+    [Parameter]
+
+    public int Id { get; set; }
+    Condition resource = new Condition();
+    IEnumerable<Condition> condition;
+    Condition conditions = new Condition();
+    Task AfterSave(Condition r)
+    {
+        NavManager.NavigateTo("/Conditions");
+        return Task.CompletedTask;
+    }
+
+ 
+    async Task Archive()
+    {
+        // твоя логика архивации
+        // await Http.PutAsJsonAsync($"Resources/{Id}/archive", new { });
+        NavManager.NavigateTo("/Resource");
+    }
+    // private async Task OnArchive()
+    // {
+
+
+
+    //     var clien = await HttpClient.PutAsJsonAsync($"Resources/{Id}", resource);
+    //     // var clien = await HttpClient.DeleteAsync($"Resources/{Id}");
+
+    //     // // TODO: заменить на реальную логику
+    //     // // NavManager.NavigateTo("/Clients/Archive");
+    //     // NavManager.NavigateTo("/Resource");
+
+    // }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // https://localhost:7166/api/
+            var client = await HttpClient.GetFromJsonAsync<Condition>($"Conditions/{Id}");
+            resource = client;
+            // conditions = resource.condition;
+            var clients = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
+            condition = clients;
+            refDicts[typeof(Condition)] = clients!;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+
+    }
+}

@@ -1,7 +1,58 @@
 ﻿@page "/Clients"
+@using BlazorApp.Client.Pages.Component
+@using ClassLibrary.Models
 @rendermode InteractiveWebAssembly
+@inject NavigationManager NavManager
+@inject HttpClient HttpClient
+
 <h3>Клиенты</h3>
 
-@code {
+<AutoRefTable TRef="Client" Items="Client" OnRowClick="OnRowClick">
+        <HeaderButtons>
+            <button class="btn btn-success me-2" @onclick="OnAdd">Добавить</button>
+            <button class="btn btn-warning" @onclick="OnArchive">К архиву</button>
+        </HeaderButtons>
 
+</AutoRefTable>
+@code {
+    IEnumerable<Client> Client;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // https://localhost:7166/api/
+            var client = await HttpClient.GetFromJsonAsync<IEnumerable<Client>>("Clients");
+            Client = client;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+
+    }
+    private void OnAdd()
+    {
+        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
+        NavManager.NavigateTo("/Clients/add");
+    }
+
+    private void OnArchive()
+    {
+        // TODO: заменить на реальную логику
+        NavManager.NavigateTo("/Clients/Archive");
+    }
+
+    private void OnRowClick(Client id)
+    {
+        try
+        {
+            // Переход на страницу деталей, например /TypeDocs/Details/5
+            NavManager.NavigateTo($"/Clients/{id.Id}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+    }
 }

@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using ClassLibrary.Date;
+using ClassLibrary.Models;
+using Elfie.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ClassLibrary.Date;
-using ClassLibrary.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace WebAPI.Controllers
 {
@@ -25,14 +26,14 @@ namespace WebAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Client>>> GetClient()
         {
-            return await _context.Client.ToListAsync();
+            return await _context.Client.Include(u => u.condition).ToListAsync();
         }
 
         // GET: api/Clients/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Client>> GetClient(int id)
         {
-            var client = await _context.Client.FindAsync(id);
+            var client = await _context.Client.Include(u => u.condition).FirstOrDefaultAsync(u => u.Id == id); ;
 
             if (client == null)
             {
@@ -51,6 +52,7 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
+            client.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == client.condition.Id);
 
             _context.Entry(client).State = EntityState.Modified;
 
@@ -78,6 +80,8 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Client>> PostClient(Client client)
         {
+            client.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == client.condition.Id);
+
             _context.Client.Add(client);
             await _context.SaveChangesAsync();
 
