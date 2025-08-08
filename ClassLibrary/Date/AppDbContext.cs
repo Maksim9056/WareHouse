@@ -26,6 +26,12 @@ namespace ClassLibrary.Date
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
+            // Document_resource -> Document (many-to-one), без коллекции у Document
+            modelBuilder.Entity<Document_resource>()
+                .HasOne(dr => dr.Document)
+                .WithMany() // у Document нет навигации-коллекции
+                .OnDelete(DeleteBehavior.Cascade); // при удалении документа удалятся строки
+
             //modelBuilder.Entity<CurrencyTick>()
             //    .HasIndex(ct => new { ct.Pair, ct.Timestamp });
 

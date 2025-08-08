@@ -1,0 +1,55 @@
+﻿@page "/Document"
+@rendermode InteractiveWebAssembly
+@using ClassLibrary.Models
+@using BlazorApp.Client.Pages.Component
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Документы</h3>
+
+@if (_loading)
+{
+    <p>Загрузка...</p>
+}
+else if (_items is null || _items.Count == 0)
+{
+    <div class="mb-3">
+        <button class="btn btn-success me-2" @onclick="Add">Добавить</button>
+        <button class="btn btn-outline-secondary" @onclick="Load">Обновить</button>
+    </div>
+    <p>Нет документов.</p>
+}
+else
+{
+    <AutoDocumentTable Items="_items" OnRowClick="Open">
+        <HeaderButtons>
+            <button class="btn btn-success me-2" @onclick="Add">Добавить</button>
+            <button class="btn btn-outline-secondary" @onclick="Load">Обновить</button>
+        </HeaderButtons>
+    </AutoDocumentTable>
+}
+
+@code {
+    List<Document>? _items;
+    bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    async Task Load()
+    {
+        _loading = true;
+        try
+        {
+            // ВАЖНО: правильный маршрут к API
+            _items = await Http.GetFromJsonAsync<List<Document>>("Documents");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    void Add() => Nav.NavigateTo("/Document/add");
+    Task Open(Document d) { Nav.NavigateTo($"/Document/{d.Id}"); return Task.CompletedTask; }
+}

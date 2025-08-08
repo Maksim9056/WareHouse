@@ -14,10 +14,12 @@ namespace ClassLibrary.Models
     {
         [Key]
         public int Id { get; set; }
-        public DateTime DateTime { get; set; }
+        [Display(Name = "Дата/время")]
+        public DateTime DateTime { get; set; } = DateTime.Now;
         public Document Document { get; set; }
         public Resource Resource { get; set; }
         public Unit Unit { get; set; }
+        [Range(1, int.MaxValue)]
         public int Count { get; set; }
     }
 }

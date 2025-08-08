@@ -15,7 +15,9 @@ namespace ClassLibrary.Models
         [Key]
         public int Id { get; set; }
         public TypeDoc TypeDoc { get; set; }
-        public string Number { get; set; }
+        [Display(Name = "Номер")]
+        public string? Number { get; set; }
+        [Display(Name = "Дата")]
         public DateTime Date { get; set; }
         public Client Client { get; set; }
         public Condition Condition { get; set; }
