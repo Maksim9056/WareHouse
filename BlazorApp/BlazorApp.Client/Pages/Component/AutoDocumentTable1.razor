@@ -1,0 +1,71 @@
+﻿@using ClassLibrary.Models
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">@Title</h5>
+        <div>@HeaderButtons</div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover table-sm mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>№</th>
+                    <th>Дата</th>
+                    @if (ShowType)
+                    {
+                        <th>Тип</th>
+                    }
+                    @if (ShowClient)
+                    {
+                        <th>Клиент</th>
+                    }
+                    @if (ShowCondition)
+                    {
+                        <th>Состояние</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (Items is null || Items.Count == 0)
+                {
+                    <tr><td colspan="5" class="text-center text-muted">Нет данных</td></tr>
+                }
+                else
+                {
+                    @foreach (var doc in Items)
+                    {
+                        <tr @onclick="() => OnRowClick.InvokeAsync(doc)" style="cursor: pointer;">
+                            <td>@doc.Number</td>
+                            <td>@doc.Date.ToString("dd.MM.yyyy")</td>
+                            @if (ShowType)
+                            {
+                                <td>@doc.TypeDoc?.Name</td>
+                            }
+                            @if (ShowClient)
+                            {
+                                <td>@doc.Client?.Name</td>
+                            }
+                            @if (ShowCondition)
+                            {
+                                <td>@doc.Condition?.Name</td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Список документов";
+    [Parameter] public List<Document> Items { get; set; } = new();
+    [Parameter] public RenderFragment? HeaderButtons { get; set; }
+    [Parameter] public EventCallback<Document> OnRowClick { get; set; }
+
+    // Новые флаги видимости колонок
+    [Parameter] public bool ShowType { get; set; } = true;
+    [Parameter] public bool ShowClient { get; set; } = true;
+    [Parameter] public bool ShowCondition { get; set; } = true;
+}

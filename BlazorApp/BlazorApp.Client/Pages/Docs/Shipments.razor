@@ -1,6 +1,154 @@
 ﻿@page "/Shipments"
 @rendermode InteractiveWebAssembly
-<h3>Отгрузки</h3>
-@code {
+@using ClassLibrary.Models
+@using BlazorApp.Client.Pages.Component
+@using System.Text
+@inject HttpClient Http
+@inject NavigationManager Nav
 
+<h3>Отгрузки</h3>
+
+@if (_loading)
+{
+    <p>Загрузка...</p>
+}
+else if (_typeDocId == 0)
+{
+    <div class="alert alert-danger">Не найден тип документа «Отгрузка». Проверь справочник TypeDocs.</div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-sm-3">
+                    <label class="form-label">Период: с</label>
+                    <InputDate TValue="DateOnly?" class="form-control" @bind-Value="_dateFrom" />
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label">по</label>
+                    <InputDate TValue="DateOnly?" class="form-control" @bind-Value="_dateTo" />
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Номера документов (множественный выбор)</label>
+                    <MultiSelect T="string"
+                                 Options="_numberOpts"
+                                 Selected="_selectedNumbers"
+                                 SelectedChanged="OnNumbersChanged"
+                                 Parse="s => s"
+                                 CssClass="form-select" />
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Ресурсы (множественный выбор)</label>
+                    <MultiSelect T="int"
+                                 Options="_resourceOpts"
+                                 Selected="_selectedResources"
+                                 SelectedChanged="OnResourcesChanged"
+                                 Parse="s => int.TryParse(s, out var x) ? x : 0"
+                                 CssClass="form-select" />
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Ед. изм. (множественный выбор)</label>
+                    <MultiSelect T="int"
+                                 Options="_unitOpts"
+                                 Selected="_selectedUnits"
+                                 SelectedChanged="OnUnitsChanged"
+                                 Parse="s => int.TryParse(s, out var x) ? x : 0"
+                                 CssClass="form-select" />
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button class="btn btn-primary me-2" @onclick="Apply">Применить</button>
+                <button class="btn btn-outline-secondary" @onclick="Reset">Сбросить</button>
+            </div>
+        </div>
+    </div>
+
+    <AutoDocumentTable1 Title="Отгрузки"
+                       Items="_items"
+                       OnRowClick="Open"
+                       ShowType="false"
+                       ShowClient="true"
+                       ShowCondition="true">
+        <HeaderButtons>
+            <button class="btn btn-success me-2" @onclick="Add">Добавить</button>
+            <button class="btn btn-outline-secondary" @onclick="Apply">Обновить</button>
+        </HeaderButtons>
+    </AutoDocumentTable1>
+}
+
+@code {
+    List<Document> _items = new();
+    int _typeDocId;
+    bool _loading = true;
+
+    DateOnly? _dateFrom = null, _dateTo = null;
+    List<string> _selectedNumbers = new();
+    List<int> _selectedResources = new();
+    List<int> _selectedUnits = new();
+
+    List<MultiSelect<string>.Opt> _numberOpts = new();
+    List<MultiSelect<int>.Opt> _resourceOpts = new();
+    List<MultiSelect<int>.Opt> _unitOpts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var types = await Http.GetFromJsonAsync<List<TypeDoc>>("TypeDocs") ?? new();
+        _typeDocId = types.FirstOrDefault(t => t.Name == "Отгрузка")?.Id ?? 0;
+
+        if (_typeDocId != 0)
+        {
+            var opts = await Http.GetFromJsonAsync<FilterOptions>($"Documents/filter-options?typeDocId={_typeDocId}");
+            _numberOpts = (opts?.Numbers ?? new()).Select(n => new MultiSelect<string>.Opt(n, n)).ToList();
+            _resourceOpts = (opts?.Resources ?? new()).Select(x => new MultiSelect<int>.Opt(x.Id, x.Name)).ToList();
+            _unitOpts = (opts?.Units ?? new()).Select(x => new MultiSelect<int>.Opt(x.Id, x.Name)).ToList();
+
+            await Apply();
+        }
+
+        _loading = false;
+    }
+
+    async Task Apply()
+    {
+        if (_typeDocId == 0) return;
+
+        var url = new StringBuilder($"Documents/search?typeDocId={_typeDocId}");
+        if (_dateFrom.HasValue) url.Append($"&dateFrom={_dateFrom:yyyy-MM-dd}");
+        if (_dateTo.HasValue) url.Append($"&dateTo={_dateTo:yyyy-MM-dd}");
+        if (_selectedNumbers.Count > 0) url.Append($"&numbers={string.Join(",", _selectedNumbers)}");
+        if (_selectedResources.Count > 0) url.Append($"&resourceIds={string.Join(",", _selectedResources)}");
+        if (_selectedUnits.Count > 0) url.Append($"&unitIds={string.Join(",", _selectedUnits)}");
+
+        _items = await Http.GetFromJsonAsync<List<Document>>(url.ToString()) ?? new();
+        StateHasChanged();
+    }
+
+    Task OnNumbersChanged(List<string> v) { _selectedNumbers = v; return Task.CompletedTask; }
+    Task OnResourcesChanged(List<int> v) { _selectedResources = v; return Task.CompletedTask; }
+    Task OnUnitsChanged(List<int> v) { _selectedUnits = v; return Task.CompletedTask; }
+
+    async Task Reset()
+    {
+        _dateFrom = _dateTo = null;
+        _selectedNumbers.Clear();
+        _selectedResources.Clear();
+        _selectedUnits.Clear();
+        await Apply();
+    }
+
+    void Add() => Nav.NavigateTo($"/Shipments/add?typeDocId={_typeDocId}&lockType=1");
+    void Open(Document d) => Nav.NavigateTo($"/Shipments/{d.Id}");
+
+    class FilterOptions
+    {
+        public List<string> Numbers { get; set; } = new();
+        public List<IdName> Resources { get; set; } = new();
+        public List<IdName> Units { get; set; } = new();
+    }
+    class IdName { public int Id { get; set; } public string Name { get; set; } = ""; }
 }

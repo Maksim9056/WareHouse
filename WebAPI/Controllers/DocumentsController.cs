@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ClassLibrary.Date;
+﻿using ClassLibrary.Date;
 using ClassLibrary.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using System.IO;
 
 namespace WebAPI.Controllers;
 
@@ -10,7 +12,23 @@ namespace WebAPI.Controllers;
 public class DocumentsController : ControllerBase
 {
     private readonly AppDbContext _context;
-    public DocumentsController(AppDbContext context) => _context = context;
+
+    public IMemoryCache cache;
+
+    public DocumentsController(AppDbContext context, IMemoryCache memoryCache)
+    {
+        //_context = context;
+        cache = memoryCache;
+        cache.Set("_context", context);
+
+
+        cache.TryGetValue("_context", out AppDbContext? appDbContext);
+
+        _context = appDbContext;
+    }
+
+
+
 
     // ----------------- helpers -----------------
     private async Task ValidateDocumentFksAsync(Document d)
@@ -261,5 +279,105 @@ public class DocumentsController : ControllerBase
         await _context.SaveChangesAsync();
         await tx.CommitAsync();
         return NoContent();
+    }
+    public class IdName { public int Id { get; set; } public string Name { get; set; } = ""; }
+    public class FilterOptions
+    {
+        public List<string> Numbers { get; set; } = new();
+        public List<IdName> Resources { get; set; } = new();
+        public List<IdName> Units { get; set; } = new();
+    }
+
+    [HttpGet("filter-options")]
+    public async Task<ActionResult<FilterOptions>> GetFilterOptions([FromQuery] int typeDocId)
+    {
+        if (typeDocId <= 0) return BadRequest("typeDocId required");
+
+        var numbers = await _context.Document
+            .Where(d => d.TypeDocId == typeDocId)
+            .Select(d => d.Number)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToListAsync();
+
+        var docIds = _context.Document
+            .Where(d => d.TypeDocId == typeDocId)
+            .Select(d => d.Id);
+
+        var resourceIds = await _context.Document_resource
+            .Where(r => docIds.Contains(r.DocumentId))
+            .Select(r => r.ResourceId)
+            .Distinct()
+            .ToListAsync();
+
+        var unitIds = await _context.Document_resource
+            .Where(r => docIds.Contains(r.DocumentId))
+            .Select(r => r.UnitId)
+            .Distinct()
+            .ToListAsync();
+
+        var resources = await _context.Resource
+            .Where(x => resourceIds.Contains(x.Id))
+            .Select(x => new IdName { Id = x.Id, Name = x.Name })
+            .OrderBy(x => x.Name)
+            .ToListAsync();
+
+        var units = await _context.Unit
+            .Where(x => unitIds.Contains(x.Id))
+            .Select(x => new IdName { Id = x.Id, Name = x.Name })
+            .OrderBy(x => x.Name)
+            .ToListAsync();
+
+        return new FilterOptions { Numbers = numbers, Resources = resources, Units = units };
+    }
+
+    [HttpGet("search")]
+    public async Task<ActionResult<IEnumerable<Document>>> Search(
+    [FromQuery] int typeDocId,
+    [FromQuery] DateOnly? dateFrom,
+    [FromQuery] DateOnly? dateTo,
+    [FromQuery] string? numbers,
+    [FromQuery] string? resourceIds,
+    [FromQuery] string? unitIds)
+    {
+        if (typeDocId <= 0) return BadRequest("typeDocId required");
+
+        var numberSet = (numbers ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        static List<int> ParseIntCsv(string? s) => (s ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => int.TryParse(x, out var v) ? v : 0)
+            .Where(v => v > 0).Distinct().ToList();
+
+        var resIds = ParseIntCsv(resourceIds);
+        var uniIds = ParseIntCsv(unitIds);
+
+        var q = _context.Document
+            .Where(d => d.TypeDocId == typeDocId);
+
+        if (dateFrom is not null) q = q.Where(d => d.Date >= dateFrom);
+        if (dateTo is not null) q = q.Where(d => d.Date <= dateTo);
+        if (numberSet.Count > 0) q = q.Where(d => numberSet.Contains(d.Number));
+
+        // Если заданы ресурсы/ед.изм — документ должен иметь хотя бы одну строку, попадающую под фильтр
+        if (resIds.Count > 0 || uniIds.Count > 0)
+        {
+            q = q.Where(d => _context.Document_resource.Any(r =>
+                r.DocumentId == d.Id &&
+                (resIds.Count == 0 || resIds.Contains(r.ResourceId)) &&
+                (uniIds.Count == 0 || uniIds.Contains(r.UnitId))));
+        }
+
+        var list = await q
+            .Include(d => d.TypeDoc)
+            .Include(d => d.Client)
+            .Include(d => d.Condition)
+            .OrderByDescending(d => d.Date)
+            .ThenByDescending(d => d.Id)
+            .ToListAsync();
+
+        return list;
     }
 }

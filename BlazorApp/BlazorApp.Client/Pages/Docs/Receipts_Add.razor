@@ -1,8 +1,8 @@
 ﻿@page "/documents/add"
 @using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models
-@using BlazorApp.Client.Pages.Component
-@using ClassLibrary.Models;
+@rendermode InteractiveWebAssembly
+
 @inject HttpClient HttpClient
 @inject NavigationManager NavManager
 <h3>Создание документа</h3>
@@ -15,7 +15,7 @@
 @code {
     Task OnSaved(Document d)
     {
-        NavManager.NavigateTo("/Documents"); // куда вернуться
+        NavManager.NavigateTo("/Receipts"); // куда вернуться
         return Task.CompletedTask;
     }
 }

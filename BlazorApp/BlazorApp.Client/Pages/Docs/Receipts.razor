@@ -1,4 +1,140 @@
-﻿@* @page "/documents"
+﻿@page "/Receipts"
+@rendermode InteractiveWebAssembly
+@using ClassLibrary.Models
+@using BlazorApp.Client.Pages.Component
+@using System.Text
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Поступления</h3>
+
+@if (_loading)
+{
+    <p>Загрузка...</p>
+}
+else if (_typeDocId == 0)
+{
+    <div class="alert alert-danger">Не найден тип документа «Поступление». Проверь справочник TypeDocs.</div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-sm-3">
+                    <label class="form-label">Период: с</label>
+                    <InputDate TValue="DateOnly?" class="form-control" @bind-Value="_dateFrom" />
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label">по</label>
+                    <InputDate TValue="DateOnly?" class="form-control" @bind-Value="_dateTo" />
+                </div>
+
+                <div class="col-sm-6">
+                    <label class="form-label">Номера документов (множественный выбор)</label>
+                    <MultiSelect T="string"
+                                 Options="_numberOpts"
+                                 Selected="_selectedNumbers"
+                                 SelectedChanged="OnNumbersChanged"
+                                 Parse="s => s"
+                                 CssClass="form-select" />
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button class="btn btn-primary me-2" @onclick="Apply">Применить</button>
+                <button class="btn btn-outline-secondary" @onclick="Reset">Сбросить</button>
+            </div>
+        </div>
+    </div>
+
+    <AutoDocumentTable1 Title="Поступления"
+                        Items="_items"
+                        OnRowClick="Open"
+                        ShowType="false"
+                        ShowClient="true"
+                        ShowCondition="true">
+        <HeaderButtons>
+            <button class="btn btn-success me-2" @onclick="Add">Добавить</button>
+            <button class="btn btn-outline-secondary" @onclick="Apply">Обновить</button>
+        </HeaderButtons>
+    </AutoDocumentTable1>
+}
+
+@code {
+    // Данные грида
+    List<Document> _items = new();
+
+    // Идентификатор типа "Поступление"
+    int _typeDocId;
+
+    // Флаги/состояния
+    bool _loading = true;
+
+    // Значения фильтров
+    DateOnly? _dateFrom = null, _dateTo = null;
+    List<string> _selectedNumbers = new();
+
+    // Опции фильтров (не зависят от периода)
+    List<MultiSelect<string>.Opt> _numberOpts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1) найти тип "Поступление"
+        var types = await Http.GetFromJsonAsync<List<TypeDoc>>("TypeDocs") ?? new();
+        _typeDocId = types.FirstOrDefault(t => t.Name == "Поступление")?.Id ?? 0;
+
+        // 2) загрузить опции (только номера — ресурсы/ед.изм. не нужны)
+        if (_typeDocId != 0)
+        {
+            var opts = await Http.GetFromJsonAsync<FilterOptions>($"Documents/filter-options?typeDocId={_typeDocId}");
+            _numberOpts = (opts?.Numbers ?? new()).Select(n => new MultiSelect<string>.Opt(n, n)).ToList();
+
+            await Apply();
+        }
+
+        _loading = false;
+    }
+
+    async Task Apply()
+    {
+        if (_typeDocId == 0) return;
+
+        var url = new StringBuilder($"Documents/search?typeDocId={_typeDocId}");
+        if (_dateFrom.HasValue) url.Append($"&dateFrom={_dateFrom:yyyy-MM-dd}");
+        if (_dateTo.HasValue) url.Append($"&dateTo={_dateTo:yyyy-MM-dd}");
+        if (_selectedNumbers.Count > 0) url.Append($"&numbers={string.Join(",", _selectedNumbers)}");
+
+        _items = await Http.GetFromJsonAsync<List<Document>>(url.ToString()) ?? new();
+        StateHasChanged();
+    }
+
+    Task OnNumbersChanged(List<string> v) { _selectedNumbers = v; return Task.CompletedTask; }
+
+    async Task Reset()
+    {
+        _dateFrom = _dateTo = null;
+        _selectedNumbers.Clear();
+        await Apply();
+    }
+
+    void Add() => Nav.NavigateTo($"/Receipts/add?typeDocId={_typeDocId}&lockType=1");
+    void Open(Document d) => Nav.NavigateTo($"/Receipts/{d.Id}");
+
+    // DTO под ответы API
+    class FilterOptions
+    {
+        public List<string> Numbers { get; set; } = new();
+        // оставил поля на будущее, но не используем:
+        public List<IdName> Resources { get; set; } = new();
+        public List<IdName> Units { get; set; } = new();
+    }
+    class IdName { public int Id { get; set; } public string Name { get; set; } = ""; }
+}
+
+
+
+@* @page "/documents"
 @using ClassLibrary.Models
 @inject HttpClient Http
 @inject NavigationManager Nav

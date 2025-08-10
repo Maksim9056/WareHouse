@@ -1,0 +1,32 @@
+﻿@typeparam T
+
+<select multiple class="@CssClass" @onchange="OnChanged">
+    @if (Options is not null)
+    {
+        @foreach (var o in Options)
+        {
+            var selected = Selected?.Contains(o.Value) == true;
+            <option value="@o.Value">@o.Label</option>
+        }
+    }
+</select>
+
+@code {
+    public record Opt(T Value, string Label);
+
+    [Parameter] public List<Opt>? Options { get; set; }
+    [Parameter] public List<T> Selected { get; set; } = new();
+    [Parameter] public EventCallback<List<T>> SelectedChanged { get; set; }
+    [Parameter] public Func<string, T>? Parse { get; set; }
+    [Parameter] public string CssClass { get; set; } = "form-select";
+
+    async Task OnChanged(ChangeEventArgs e)
+    {
+        // Для <select multiple> Value = string[]
+        var arr = (e.Value as IEnumerable<string>)?.ToArray() ?? Array.Empty<string>();
+        if (Parse is null) return;
+        Selected = arr.Select(Parse).Distinct().ToList();
+        await SelectedChanged.InvokeAsync(Selected);
+        StateHasChanged();
+    }
+}

@@ -31,6 +31,7 @@ namespace WebAPI
                         .AllowAnyMethod();
                 });
             });
+            builder.Services.AddMemoryCache();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

@@ -1,0 +1,191 @@
+﻿@page "/Receipts/add"
+@page "/Receipts/{Id:int}"
+@rendermode InteractiveWebAssembly
+@using ClassLibrary.Models
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>@(Id == 0 ? "Создание поступления" : "Редактирование поступления")</h3>
+
+@if (_loading)
+{
+    <p>Загрузка...</p>
+}
+else if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_typeDocId == 0)
+{
+    <div class="alert alert-danger">Не найден тип документа «Поступление». Проверь справочник TypeDocs.</div>
+}
+else if (_document is null)
+{
+    <div class="alert alert-warning">Документ не найден.</div>
+}
+else
+{
+    <EditForm Model="_document" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="card p-3 mb-3">
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <label class="form-label">Номер</label>
+                    <InputText class="form-control" @bind-Value="_document.Number" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Дата</label>
+                    <InputDate TValue="DateOnly" class="form-control" @bind-Value="_document.Date" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Тип документа</label>
+                    <input class="form-control" value="@_typeDocName" disabled />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Клиент</label>
+                    <InputSelect class="form-select" @bind-Value="_clientId">
+                        <option value="0">— выберите —</option>
+                        @foreach (var c in _clients)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Состояние</label>
+                    <InputSelect class="form-select" @bind-Value="_conditionId">
+                        <option value="0">— выберите —</option>
+                        @foreach (var s in _conditions)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+        </div>
+
+        <!-- Без позиций: блок строк скрыт полностью -->
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-success me-2">Сохранить</button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Отмена</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    // Документ (только шапка)
+    Document? _document;
+
+    // Справочники
+    IEnumerable<Client> _clients = [];
+    IEnumerable<Condition> _conditions = [];
+    IEnumerable<TypeDoc> _typeDocs = [];
+
+    // Выбранные Id
+    int _clientId;
+    int _conditionId;
+    int _typeDocId;
+
+    // Прочее
+    string _typeDocName = "Поступление";
+    bool _loading = true;
+    string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1) Справочники
+        _typeDocs = await Http.GetFromJsonAsync<IEnumerable<TypeDoc>>("TypeDocs") ?? [];
+        _clients = await Http.GetFromJsonAsync<IEnumerable<Client>>("Clients") ?? [];
+        _conditions = await Http.GetFromJsonAsync<IEnumerable<Condition>>("Conditions") ?? [];
+
+        // Находим TypeDocId для «Поступление»
+        _typeDocId = _typeDocs.FirstOrDefault(t => t.Name == "Поступление")?.Id ?? 0;
+        _typeDocName = _typeDocs.FirstOrDefault(t => t.Id == _typeDocId)?.Name ?? _typeDocName;
+
+        if (Id == 0)
+        {
+            // Новый документ (пустой, без позиций)
+            _document = new Document
+            {
+                Number = "",
+                Date = DateOnly.FromDateTime(DateTime.Today),
+                TypeDocId = _typeDocId
+            };
+            _clientId = 0;
+            _conditionId = 0;
+        }
+        else
+        {
+            // Редактирование существующего
+            _document = await Http.GetFromJsonAsync<Document>($"Documents/{Id}");
+            if (_document is null)
+            {
+                _error = "Документ не найден.";
+            }
+            else
+            {
+                if (_document.TypeDocId != _typeDocId && (_document.TypeDoc?.Id ?? 0) != _typeDocId)
+                {
+                    _error = "Этот документ не является Поступлением.";
+                }
+
+                _clientId = _document.Client?.Id ?? _document.ClientId;
+                _conditionId = _document.Condition?.Id ?? _document.ConditionId;
+            }
+        }
+
+        _loading = false;
+    }
+
+    async Task Save()
+    {
+        if (_document is null) return;
+
+        // Простая валидация
+        if (string.IsNullOrWhiteSpace(_document.Number)) return;
+        if (_typeDocId == 0) return;
+        if (_clientId == 0 || _conditionId == 0) return;
+
+        var payload = new
+        {
+            Id = Id,
+            Number = _document.Number,
+            Date = _document.Date,     // DateOnly
+            TypeDocId = _typeDocId,    // фиксировано: Поступление
+            ClientId = _clientId,
+            ConditionId = _conditionId
+        };
+
+        if (Id == 0)
+        {
+            var resp = await Http.PostAsJsonAsync("Documents", payload);
+            if (!resp.IsSuccessStatusCode)
+            {
+                _error = await resp.Content.ReadAsStringAsync();
+                return;
+            }
+        }
+        else
+        {
+            var resp = await Http.PutAsJsonAsync($"Documents/{Id}", payload);
+            if (!resp.IsSuccessStatusCode)
+            {
+                _error = await resp.Content.ReadAsStringAsync();
+                return;
+            }
+        }
+
+        Nav.NavigateTo("/Receipts");
+    }
+
+    void Cancel() => Nav.NavigateTo("/Receipts");
+}
