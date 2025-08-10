@@ -19,9 +19,9 @@ else if (_typeDocId == 0)
 {
     <div class="alert alert-danger">Не найден тип документа «Поступление». Проверь справочник TypeDocs.</div>
 }
-else if (_document is null)
+else if (_document is null || _resources is null)
 {
-    <div class="alert alert-warning">Документ не найден.</div>
+    <div class="alert alert-warning">Данные не найдены.</div>
 }
 else
 {
@@ -29,23 +29,21 @@ else
         <DataAnnotationsValidator />
         <ValidationSummary />
 
+        <!-- Шапка -->
         <div class="card p-3 mb-3">
             <div class="row g-2">
                 <div class="col-md-3">
                     <label class="form-label">Номер</label>
                     <InputText class="form-control" @bind-Value="_document.Number" />
                 </div>
-
                 <div class="col-md-3">
                     <label class="form-label">Дата</label>
                     <InputDate TValue="DateOnly" class="form-control" @bind-Value="_document.Date" />
                 </div>
-
                 <div class="col-md-3">
                     <label class="form-label">Тип документа</label>
                     <input class="form-control" value="@_typeDocName" disabled />
                 </div>
-
                 <div class="col-md-3">
                     <label class="form-label">Клиент</label>
                     <InputSelect class="form-select" @bind-Value="_clientId">
@@ -56,7 +54,6 @@ else
                         }
                     </InputSelect>
                 </div>
-
                 <div class="col-md-3">
                     <label class="form-label">Состояние</label>
                     <InputSelect class="form-select" @bind-Value="_conditionId">
@@ -70,7 +67,69 @@ else
             </div>
         </div>
 
-        <!-- Без позиций: блок строк скрыт полностью -->
+        <!-- Позиции (для Поступления НЕ обязательны) -->
+        <div class="d-flex align-items-center mb-2">
+            <h5 class="m-0 me-3">Позиции</h5>
+            <button type="button" class="btn btn-sm btn-primary" @onclick="AddRow">Добавить</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th style="width: 180px;">Дата/время</th>
+                        <th>Ресурс</th>
+                        <th style="width: 220px;">Ед. изм.</th>
+                        <th style="width: 140px;">Кол-во</th>
+                        <th style="width: 60px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < _resources.Count; i++)
+                    {
+                        var row = _resources[i];
+                        var idx = i;
+                        <tr @key="idx">
+                            <td>
+                                <InputDate TValue="DateTimeOffset" class="form-control form-control-sm" @bind-Value="row.DateTime" />
+                            </td>
+                            <td>
+                                <InputSelect TValue="int"
+                                             class="form-select form-select-sm"
+                                             Value="_resourceIds[idx]"
+                                             ValueChanged="(int v) => _resourceIds[idx] = v"
+                                             ValueExpression="@(() => _resourceIds[idx])">
+                                    <option value="0">— выберите —</option>
+                                    @foreach (var r in _allResources)
+                                    {
+                                        <option value="@r.Id">@r.Name</option>
+                                    }
+                                </InputSelect>
+                            </td>
+                            <td>
+                                <InputSelect TValue="int"
+                                             class="form-select form-select-sm"
+                                             Value="_unitIds[idx]"
+                                             ValueChanged="(int v) => _unitIds[idx] = v"
+                                             ValueExpression="@(() => _unitIds[idx])">
+                                    <option value="0">— выберите —</option>
+                                    @foreach (var u in _allUnits)
+                                    {
+                                        <option value="@u.Id">@u.Name</option>
+                                    }
+                                </InputSelect>
+                            </td>
+                            <td>
+                                <InputNumber class="form-control form-control-sm" @bind-Value="row.Count" />
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger" title="Удалить" @onclick="() => RemoveRow(idx)">×</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
 
         <div class="mt-3">
             <button type="submit" class="btn btn-success me-2">Сохранить</button>
@@ -82,107 +141,162 @@ else
 @code {
     [Parameter] public int Id { get; set; }
 
-    // Документ (только шапка)
+    // Шапка
     Document? _document;
 
+    // Строки
+    List<Document_resource>? _resources;
+
     // Справочники
+    IEnumerable<TypeDoc> _typeDocs = [];
     IEnumerable<Client> _clients = [];
     IEnumerable<Condition> _conditions = [];
-    IEnumerable<TypeDoc> _typeDocs = [];
+    IEnumerable<Resource> _allResources = [];
+    IEnumerable<Unit> _allUnits = [];
 
-    // Выбранные Id
+    // выбранные Id
+    int _typeDocId;
     int _clientId;
     int _conditionId;
-    int _typeDocId;
+    List<int> _resourceIds = new();
+    List<int> _unitIds = new();
 
-    // Прочее
+    // прочее
     string _typeDocName = "Поступление";
     bool _loading = true;
     string? _error;
 
     protected override async Task OnInitializedAsync()
     {
-        // 1) Справочники
+        // Справочники
         _typeDocs = await Http.GetFromJsonAsync<IEnumerable<TypeDoc>>("TypeDocs") ?? [];
         _clients = await Http.GetFromJsonAsync<IEnumerable<Client>>("Clients") ?? [];
         _conditions = await Http.GetFromJsonAsync<IEnumerable<Condition>>("Conditions") ?? [];
+        _allResources = await Http.GetFromJsonAsync<IEnumerable<Resource>>("Resources") ?? [];
+        _allUnits = await Http.GetFromJsonAsync<IEnumerable<Unit>>("Unit") ?? [];
 
-        // Находим TypeDocId для «Поступление»
+        // Тип «Поступление»
         _typeDocId = _typeDocs.FirstOrDefault(t => t.Name == "Поступление")?.Id ?? 0;
         _typeDocName = _typeDocs.FirstOrDefault(t => t.Id == _typeDocId)?.Name ?? _typeDocName;
 
         if (Id == 0)
         {
-            // Новый документ (пустой, без позиций)
             _document = new Document
             {
                 Number = "",
                 Date = DateOnly.FromDateTime(DateTime.Today),
                 TypeDocId = _typeDocId
             };
+            _resources = new();
             _clientId = 0;
             _conditionId = 0;
+            // опционально можно сразу добавить одну пустую строку:
+            // AddRow();
         }
         else
         {
-            // Редактирование существующего
             _document = await Http.GetFromJsonAsync<Document>($"Documents/{Id}");
-            if (_document is null)
-            {
-                _error = "Документ не найден.";
-            }
-            else
-            {
-                if (_document.TypeDocId != _typeDocId && (_document.TypeDoc?.Id ?? 0) != _typeDocId)
-                {
-                    _error = "Этот документ не является Поступлением.";
-                }
+            _resources = await Http.GetFromJsonAsync<List<Document_resource>>($"Documents/{Id}/items");
 
-                _clientId = _document.Client?.Id ?? _document.ClientId;
-                _conditionId = _document.Condition?.Id ?? _document.ConditionId;
+            if (_document is null) _error = "Документ не найден.";
+            if (_document is not null && _typeDocId != 0 &&
+                _document.TypeDocId != _typeDocId && (_document.TypeDoc?.Id ?? 0) != _typeDocId)
+            {
+                _error = "Этот документ не является Поступлением.";
             }
+
+            _clientId = _document?.Client?.Id ?? _document?.ClientId ?? 0;
+            _conditionId = _document?.Condition?.Id ?? _document?.ConditionId ?? 0;
+
+            _resourceIds = _resources?.Select(r => r.Resource?.Id ?? r.ResourceId).ToList() ?? new();
+            _unitIds = _resources?.Select(r => r.Unit?.Id ?? r.UnitId).ToList() ?? new();
         }
 
         _loading = false;
     }
 
+    void AddRow()
+    {
+        _resources!.Add(new Document_resource
+        {
+            DateTime = DateTimeOffset.UtcNow,
+            Count = 1
+        });
+        _resourceIds.Add(0);
+        _unitIds.Add(0);
+    }
+
+    void RemoveRow(int index)
+    {
+        if (index < 0 || index >= _resources!.Count) return;
+        _resources!.RemoveAt(index);
+        _resourceIds.RemoveAt(index);
+        _unitIds.RemoveAt(index);
+    }
+
     async Task Save()
     {
-        if (_document is null) return;
+        if (_document is null || _resources is null) return;
 
-        // Простая валидация
-        if (string.IsNullOrWhiteSpace(_document.Number)) return;
-        if (_typeDocId == 0) return;
-        if (_clientId == 0 || _conditionId == 0) return;
+        // Валидация шапки (строки могут отсутствовать!)
+        if (string.IsNullOrWhiteSpace(_document.Number)) { _error = "Укажите номер."; return; }
+        if (_typeDocId == 0) { _error = "Не найден тип документа «Поступление»."; return; }
+        if (_clientId == 0) { _error = "Выберите клиента."; return; }
+        if (_conditionId == 0) { _error = "Выберите состояние."; return; }
 
-        var payload = new
+        // Если строки есть — проверим их
+        if (_resources.Count > 0)
+        {
+            if (_resources.Count != _resourceIds.Count || _resources.Count != _unitIds.Count) { _error = "Разъехались массивы строк."; return; }
+            if (_resourceIds.Any(x => x == 0) || _unitIds.Any(x => x == 0)) { _error = "Для всех строк укажите ресурс и единицу."; return; }
+            if (_resources.Any(r => r.Count < 1)) { _error = "Количество должно быть ≥ 1."; return; }
+        }
+
+        // Шапка
+        var payloadDoc = new
         {
             Id = Id,
             Number = _document.Number,
-            Date = _document.Date,     // DateOnly
-            TypeDocId = _typeDocId,    // фиксировано: Поступление
+            Date = _document.Date,
+            TypeDocId = _typeDocId,
             ClientId = _clientId,
             ConditionId = _conditionId
         };
 
+        int docId;
+        HttpResponseMessage headResp;
+
         if (Id == 0)
         {
-            var resp = await Http.PostAsJsonAsync("Documents", payload);
-            if (!resp.IsSuccessStatusCode)
-            {
-                _error = await resp.Content.ReadAsStringAsync();
-                return;
-            }
+            headResp = await Http.PostAsJsonAsync("Documents", payloadDoc);
+            if (!headResp.IsSuccessStatusCode) { _error = await headResp.Content.ReadAsStringAsync(); return; }
+            docId = await headResp.Content.ReadFromJsonAsync<int>();
         }
         else
         {
-            var resp = await Http.PutAsJsonAsync($"Documents/{Id}", payload);
-            if (!resp.IsSuccessStatusCode)
-            {
-                _error = await resp.Content.ReadAsStringAsync();
-                return;
-            }
+            headResp = await Http.PutAsJsonAsync($"Documents/{Id}", payloadDoc);
+            if (!headResp.IsSuccessStatusCode) { _error = await headResp.Content.ReadAsStringAsync(); return; }
+            docId = Id;
         }
+
+        // Строки: отправляем ВСЕГДА (даже пустой список, чтобы можно было очистить документ)
+        var rowsPayload = new List<object>(_resources.Count);
+        for (int i = 0; i < _resources.Count; i++)
+        {
+            var src = _resources[i];
+            rowsPayload.Add(new
+            {
+                Id = src.Id,                 // 0 — новая строка
+                DocumentId = docId,
+                ResourceId = _resourceIds[i],
+                UnitId = _unitIds[i],
+                DateTime = src.DateTime.ToUniversalTime(),
+                Count = src.Count
+            });
+        }
+
+        var rowsResp = await Http.PostAsJsonAsync($"Document_resource/bulk/{docId}", rowsPayload);
+        if (!rowsResp.IsSuccessStatusCode) { _error = await rowsResp.Content.ReadAsStringAsync(); return; }
 
         Nav.NavigateTo("/Receipts");
     }
