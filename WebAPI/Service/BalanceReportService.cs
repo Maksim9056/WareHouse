@@ -11,12 +11,15 @@ namespace WebAPI.Service
         Shipment = 2  // Отгрузка
     }
 
- 
-
     public class BalanceReportService
     {
         private readonly AppDbContext _db;
         private readonly IMemoryCache _cache;
+
+        // если когда-нибудь потребуется учитывать и «Отозван» — поставь true
+        private const bool IncludeRevokedInBalance = false;
+        private const string SignedName = "Подписан";
+        private const string RevokedName = "Отозван";
 
         public BalanceReportService(AppDbContext db, IMemoryCache cache)
         {
@@ -31,27 +34,51 @@ namespace WebAPI.Service
             return $"balances:r={Part(resourceIds)}:u={Part(unitIds)}";
         }
 
+        // --- кэшируем Id нужных состояний ---
+        private async Task<int[]> GetCountableConditionIdsAsync(CancellationToken ct)
+        {
+            const string key = "balances:cond-ids";
+            if (_cache.TryGetValue(key, out int[]? cached) && cached is { Length: > 0 })
+                return cached;
+
+            var q = _db.Condition.AsNoTracking().Where(c => c.Name == SignedName);
+            if (IncludeRevokedInBalance)
+                q = q.Where(c => c.Name == SignedName || c.Name == RevokedName);
+
+            // EF не переварит условие выше как есть, поэтому соберём явно:
+            var ids = await _db.Condition.AsNoTracking()
+                .Where(c => IncludeRevokedInBalance
+                        ? (c.Name == SignedName || c.Name == RevokedName)
+                        : (c.Name == SignedName))
+                .Select(c => c.Id)
+                .ToArrayAsync(ct);
+
+            _cache.Set(key, ids, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
+                SlidingExpiration = TimeSpan.FromMinutes(10)
+            });
+
+            return ids;
+        }
+
         public async Task<List<BalanceRowDto>> GetBalancesAsync(
             int[]? resourceIds,
             int[]? unitIds,
             CancellationToken ct = default)
         {
             var key = CacheKey(resourceIds, unitIds);
-            //if (_cache.TryGetValue(key, out List<BalanceRowDto> cached))
-            //    return cached;
-
             if (_cache.TryGetValue(key, out List<BalanceRowDto>? cached))
-            {
-
-                Console.WriteLine($"Кэш их памяти ключа {key} ");
                 return cached;
-            }
 
+            // берём допустимые состояния
+            var allowedCondIds = await GetCountableConditionIdsAsync(ct);
 
-            // Позиции документов + документ (только Поступление/Отгрузка)
+            // строки документов + фильтруем по типу и состоянию
             var q = from dr in _db.Document_resource.AsNoTracking()
                     join d in _db.Document.AsNoTracking() on dr.DocumentId equals d.Id
-                    where d.TypeDocId == (int)TypeDocKind.Receipt || d.TypeDocId == (int)TypeDocKind.Shipment
+                    where (d.TypeDocId == (int)TypeDocKind.Receipt || d.TypeDocId == (int)TypeDocKind.Shipment)
+                          && allowedCondIds.Contains(d.ConditionId)
                     select new { dr.ResourceId, dr.UnitId, dr.Count, d.TypeDocId };
 
             if (resourceIds is { Length: > 0 })
@@ -92,9 +119,10 @@ namespace WebAPI.Service
             return data;
         }
 
-        // вызывай после успешного SaveChangesAsync в местах, где меняются документы/позиции
+        // вызывать после успешного сохранения документов/строк ИЛИ смены состояния документа
         public void InvalidateBalancesCache(int[]? resourceIds = null, int[]? unitIds = null)
         {
+            _cache.Remove("balances:cond-ids"); // на случай переименования статусов
             _cache.Remove(CacheKey(null, null));
             _cache.Remove(CacheKey(resourceIds, null));
             _cache.Remove(CacheKey(null, unitIds));
