@@ -11,10 +11,6 @@
 {
     <p>Загрузка...</p>
 }
-else if (!string.IsNullOrEmpty(_error))
-{
-    <div class="alert alert-danger">@_error</div>
-}
 else if (_typeDocId == 0)
 {
     <div class="alert alert-danger">Не найден тип документа «Поступление». Проверь справочник TypeDocs.</div>
@@ -28,7 +24,10 @@ else
     <EditForm Model="_document" OnValidSubmit="Save">
         <DataAnnotationsValidator />
         <ValidationSummary />
-
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger mb-3">@_error</div>
+        }
         <!-- Шапка -->
         <div class="card p-3 mb-3">
             <div class="row g-2">
