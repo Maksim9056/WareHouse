@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using ClassLibrary.Date;
+using ClassLibrary.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ClassLibrary.Date;
-using ClassLibrary.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using WebAPI.Service;
 
 namespace WebAPI.Controllers
 {
@@ -15,7 +16,15 @@ namespace WebAPI.Controllers
     public class Document_resourceController : ControllerBase
     {
         private readonly AppDbContext _context;
-        public Document_resourceController(AppDbContext context) => _context = context;
+        private readonly BalanceReportService _balances;
+
+        public Document_resourceController(AppDbContext context ,BalanceReportService balances)
+        {
+            _context = context;
+            _balances = balances;
+        _balances = balances;
+
+        }
 
         // ------- базовые методы оставим, но с Attach -------
 
@@ -48,6 +57,8 @@ namespace WebAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                _balances.InvalidateBalancesCache(); // сброс сразу после записи
+
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -89,6 +100,8 @@ namespace WebAPI.Controllers
 
             _context.Entry(row).State = EntityState.Modified;
             await _context.SaveChangesAsync();
+            _balances.InvalidateBalancesCache(); // сброс сразу после записи
+
             return NoContent();
         }
 
@@ -110,6 +123,7 @@ namespace WebAPI.Controllers
 
             _context.Document_resource.Add(row);
             await _context.SaveChangesAsync();
+            _balances.InvalidateBalancesCache(); // сброс сразу после записи
 
             return CreatedAtAction(nameof(GetDocument_resource), new { id = row.Id }, row);
         }
@@ -185,6 +199,8 @@ namespace WebAPI.Controllers
             }
 
             await _context.SaveChangesAsync();
+            _balances.InvalidateBalancesCache(); // сброс сразу после записи
+
             return NoContent();
         }
 

@@ -2,6 +2,7 @@
 using ClassLibrary.Date;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using WebAPI.Service;
 
 namespace WebAPI
 {
@@ -32,6 +33,9 @@ namespace WebAPI
                 });
             });
             builder.Services.AddMemoryCache();
+            builder.Services.AddScoped<BalanceReportService>();
+
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

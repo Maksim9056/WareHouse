@@ -31,13 +31,49 @@ namespace ClassLibrary.Date
                 .HasOne(dr => dr.Document)
                 .WithMany() // у Document нет навигации-коллекции
                 .OnDelete(DeleteBehavior.Cascade); // при удалении документа удалятся строки
+            modelBuilder.Entity<Document_resource>()
+           .HasOne(dr => dr.Resource)
+           .WithMany()
+           .HasForeignKey(dr => dr.ResourceId)
+           .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<Document_resource>()
+                .HasOne(dr => dr.Unit)
+                .WithMany()
+                .HasForeignKey(dr => dr.UnitId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ----- связи для Document -----
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.TypeDoc)
+                .WithMany()
+                .HasForeignKey(d => d.TypeDocId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.Client)
+                .WithMany()
+                .HasForeignKey(d => d.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.Condition)
+                .WithMany()
+                .HasForeignKey(d => d.ConditionId)
+                .OnDelete(DeleteBehavior.Restrict);
             //modelBuilder.Entity<CurrencyTick>()
             //    .HasIndex(ct => new { ct.Pair, ct.Timestamp });
 
             //modelBuilder.Entity<CurrencyPair>()
             //    .HasIndex(cp => cp.Symbol)
             //    .IsUnique();
+
+            // ----- индексы (ускорение отчёта) -----
+            modelBuilder.Entity<Document>()
+                .HasIndex(d => d.TypeDocId);
+
+            modelBuilder.Entity<Document_resource>()
+                .HasIndex(dr => new { dr.DocumentId, dr.ResourceId, dr.UnitId });
             modelBuilder.Entity<Condition>().HasData(
                    new Condition { Id = 1, Name = "Подписан",    Code = "Подписан" },
 

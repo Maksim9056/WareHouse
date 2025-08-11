@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.IO;
+using WebAPI.Service;
 
 namespace WebAPI.Controllers;
 
@@ -12,10 +13,11 @@ namespace WebAPI.Controllers;
 public class DocumentsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly BalanceReportService _balances;
 
     public IMemoryCache cache;
 
-    public DocumentsController(AppDbContext context, IMemoryCache memoryCache)
+    public DocumentsController(AppDbContext context, IMemoryCache memoryCache, BalanceReportService balances)
     {
         //_context = context;
         cache = memoryCache;
@@ -25,6 +27,8 @@ public class DocumentsController : ControllerBase
         cache.TryGetValue("_context", out AppDbContext? appDbContext);
 
         _context = appDbContext;
+        _balances = balances;
+
     }
 
 
@@ -114,6 +118,7 @@ public class DocumentsController : ControllerBase
 
         _context.Document.Add(document);
         await _context.SaveChangesAsync();
+        _balances.InvalidateBalancesCache(); // сброс сразу после записи
 
         return Ok(document.Id);
     }
@@ -139,6 +144,8 @@ public class DocumentsController : ControllerBase
         doc.ConditionId = incoming.ConditionId;
 
         await _context.SaveChangesAsync();
+        _balances.InvalidateBalancesCache(); // сброс сразу после записи
+
         return NoContent();
     }
 
@@ -151,6 +158,7 @@ public class DocumentsController : ControllerBase
 
         _context.Document.Remove(document);
         await _context.SaveChangesAsync();
+        _balances.InvalidateBalancesCache(); 
         return NoContent();
     }
 
@@ -197,6 +205,7 @@ public class DocumentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         await tx.CommitAsync();
+        _balances.InvalidateBalancesCache(); // сброс сразу после записи
 
         return Ok(docId);
     }
@@ -278,6 +287,8 @@ public class DocumentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         await tx.CommitAsync();
+        _balances.InvalidateBalancesCache(); // сброс сразу после записи
+
         return NoContent();
     }
     public class IdName { public int Id { get; set; } public string Name { get; set; } = ""; }

@@ -1,6 +1,7 @@
 ﻿@page "/Shipments/add"
 @page "/Shipments/{Id:int}"
 @rendermode InteractiveWebAssembly
+@using BlazorApp.Client.Pages.Reports
 @using ClassLibrary.Models
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -141,7 +142,7 @@ else
         </div>
     </EditForm>
 }
-
+<Balance/>
 @code {
     [Parameter] public int Id { get; set; }
 
