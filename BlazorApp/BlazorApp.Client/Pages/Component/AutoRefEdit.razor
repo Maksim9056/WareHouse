@@ -4,23 +4,20 @@
 @using ClassLibrary.Models
 
 @inject HttpClient Http
+@inject NavigationManager NavManager
 
-@if (Model == null || _loading)
+@if (Model == null || _loading || _editContext is null)
 {
     <p>Загрузка...</p>
 }
 else
 {
-    <!-- Если хочешь нативный <form>, раскомментируй и используй @formname -->
-    <!--
-    <form method="post" @formname="ResolvedFormName" @onsubmit="HandleSubmit">
-        ... твой контент ...
-    </form>
-    -->
+    @if (!string.IsNullOrWhiteSpace(_serverError))
+    {
+        <div class="alert alert-danger">@_serverError</div>
+    }
 
-    <EditForm Model="Model"
-              OnValidSubmit="SaveAsync"
-              FormName="@(ResolvedFormName)">
+    <EditForm EditContext="_editContext" OnSubmit="TrySaveAsync" FormName="@(ResolvedFormName)">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
@@ -71,7 +68,9 @@ else
         }
 
         <div class="mt-3">
-            <button class="btn btn-success me-2" type="submit">Сохранить</button>
+            <button class="btn btn-success me-2" type="submit" disabled="@_saving">
+                @(_saving ? "Сохранение..." : "Сохранить")
+            </button>
             @if (ExtraButtons is not null)
             {
                 @ExtraButtons
@@ -84,23 +83,29 @@ else
     // --- ПАРАМЕТРЫ ---
     [Parameter] public int Id { get; set; }
     [Parameter] public string ApiPath { get; set; } = default!; // "Resources", "Clients", ...
-    [Parameter] public string? FormName { get; set; } // если не задан — сгенерируем
+    [Parameter] public string? FormName { get; set; }
 
-    // Справочники для выпадающих списков: typeof(Condition) => IEnumerable<Condition>, и т.п.
+    // куда перейти после успеха (например, "/Resource"), если null — не переходим
+    [Parameter] public string? NavigateOnSuccessTo { get; set; }
+
+    // выпадающие справочники
     [Parameter] public Dictionary<Type, IEnumerable<BaseRef>>? ReferenceDictionaries { get; set; }
 
-    // Кастомные загрузчик/сохранение (необязательно)
+    // необязательные кастомные загрузчик/сохранение
     [Parameter] public Func<HttpClient, int, Task<TRef>>? Loader { get; set; }
     [Parameter] public Func<HttpClient, TRef, int, Task>? Saver { get; set; }
 
-    // Коллбек после сохранения
     [Parameter] public EventCallback<TRef> OnSaved { get; set; }
-
-    // Доп. кнопки (например, "В архив")
     [Parameter] public RenderFragment? ExtraButtons { get; set; }
 
     protected TRef? Model;
     bool _loading = true;
+    bool _saving = false;
+    string? _serverError;
+
+    EditContext? _editContext;
+    ValidationMessageStore? _messages;
+
     string ResolvedFormName => !string.IsNullOrWhiteSpace(FormName)
         ? FormName!
         : $"auto-edit-{typeof(TRef).Name.ToLowerInvariant()}";
@@ -109,27 +114,164 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
+        _serverError = null;
+
         Model = Loader is not null
             ? await Loader(Http, Id)
             : await Http.GetFromJsonAsync<TRef>($"{ApiPath}/{Id}");
+
+        _editContext = Model is null ? null : new EditContext(Model);
+        if (_editContext is not null)
+            _messages = new ValidationMessageStore(_editContext);
+
         _loading = false;
     }
 
-    // --- SUBMIT ---
-    async Task SaveAsync()
+    // --- SUBMIT/VALIDATION ---
+    async Task TrySaveAsync(EditContext ctx)
+    {
+        if (Model is null || _editContext is null || _messages is null) return;
+
+        _serverError = null;
+        _messages.Clear();
+
+        // 1) Валидируем DataAnnotations (если есть на моделях)
+        bool daOk = ctx.Validate();
+
+        // 2) Наша «обязательность всех полей»
+        bool requiredOk = ValidateRequired();
+
+        if (!(daOk && requiredOk))
+        {
+            _editContext.NotifyValidationStateChanged();
+            return;
+        }
+
+        // 3) Сохранение + обработка ответа сервера (конфликт уникальности и т.д.)
+        await SaveCoreAsync();
+    }
+
+    bool ValidateRequired()
+    {
+        if (_editContext is null || _messages is null || Model is null) return false;
+
+        bool ok = true;
+
+        foreach (var p in GetDisplayProps())
+        {
+            var fi = new FieldIdentifier(Model, p.Name);
+            var val = p.GetValue(Model);
+
+            // строки — не пустые/не пробелы
+            if (p.PropertyType == typeof(string))
+            {
+                if (string.IsNullOrWhiteSpace(val as string))
+                {
+                    _messages.Add(fi, "Поле обязательно для заполнения.");
+                    ok = false;
+                }
+                continue;
+            }
+
+            // int / int?
+            if (p.PropertyType == typeof(int) || p.PropertyType == typeof(int?))
+            {
+                // считаем обязательным и не нулевым
+                if (val is null)
+                {
+                    _messages.Add(fi, "Значение обязательно.");
+                    ok = false;
+                }
+                else
+                {
+                    int iv = Convert.ToInt32(val);
+                    if (iv == 0)
+                    {
+                        _messages.Add(fi, "Значение должно быть больше 0.");
+                        ok = false;
+                    }
+                }
+                continue;
+            }
+
+            // ссылки на BaseRef (другие справочники) — должны быть выбраны
+            if (typeof(BaseRef).IsAssignableFrom(p.PropertyType) && p.PropertyType != typeof(TRef))
+            {
+                if (val is not BaseRef br || br.Id <= 0)
+                {
+                    _messages.Add(fi, "Необходимо выбрать значение.");
+                    ok = false;
+                }
+                continue;
+            }
+
+            // для прочих типов — просто не null
+            if (val is null)
+            {
+                _messages.Add(fi, "Поле обязательно для заполнения.");
+                ok = false;
+            }
+        }
+
+        return ok;
+    }
+
+    async Task SaveCoreAsync()
     {
         if (Model is null) return;
 
-        if (Saver is not null)
-            await Saver(Http, Model, Id);
-        else
-            await Http.PutAsJsonAsync($"{ApiPath}/{Id}", Model);
+        _saving = true;
+        HttpResponseMessage? resp = null;
 
-        await OnSaved.InvokeAsync(Model);
+        try
+        {
+            if (Saver is not null)
+            {
+                // Кастомный сохранитель: оборачиваем, чтобы ловить ошибки
+                try
+                {
+                    await Saver(Http, Model, Id);
+                    await OnSaveSuccess();
+                    return;
+                }
+                catch (HttpRequestException ex)
+                {
+                    _serverError = ex.Message;
+                    return;
+                }
+            }
+
+            // По-умолчанию: POST для создания, PUT для обновления
+            if (Id == 0)
+                resp = await Http.PostAsJsonAsync($"{ApiPath}", Model);
+            else
+                resp = await Http.PutAsJsonAsync($"{ApiPath}/{Id}", Model);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                await OnSaveSuccess();
+            }
+            else
+            {
+                // читаем текст ошибки как есть (например, при нарушении уникальности)
+                _serverError = await resp.Content.ReadAsStringAsync();
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
-    // Если используешь <form @formname> вариант:
-    Task HandleSubmit() => SaveAsync();
+    async Task OnSaveSuccess()
+    {
+        _serverError = null;
+        await OnSaved.InvokeAsync(Model!);
+
+        // навигация как в вашем фрагменте:
+        if (!string.IsNullOrWhiteSpace(NavigateOnSuccessTo))
+            NavManager.NavigateTo(NavigateOnSuccessTo);
+    }
 
     // --- REFLECTION HELPERS ---
     List<PropertyInfo> GetDisplayProps() =>

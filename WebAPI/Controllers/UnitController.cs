@@ -101,7 +101,7 @@ namespace WebAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUnit_of_measurement(int id)
         {
-            var unit_of_measurement = await _context.Unit.FindAsync(id);
+            var unit_of_measurement = await _context.Unit.Include(r => r.condition).FirstOrDefaultAsync(r => r.Id == id);
             if (unit_of_measurement == null)
             {
                 return NotFound();

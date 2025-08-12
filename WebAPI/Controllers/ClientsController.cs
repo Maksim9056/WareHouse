@@ -101,12 +101,20 @@ namespace WebAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteClient(int id)
         {
-            var client = await _context.Client.FindAsync(id);
+            var client = await _context.Client.Include(r => r.condition).FirstOrDefaultAsync(r => r.Id == id);
             if (client == null)
             {
                 return NotFound();
             }
 
+            bool used = await _context.Document.AnyAsync(dr => dr.ClientId == id);
+            if (used)
+            {
+                var archive = await _context.Condition.FirstAsync(c => c.Name == "Архив");
+                client.condition = archive;
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
             _context.Client.Remove(client);
             await _context.SaveChangesAsync();
 

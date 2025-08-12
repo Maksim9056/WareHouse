@@ -102,12 +102,21 @@ namespace WebAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteResource(int id)
         {
-            var resource = await _context.Resource.FindAsync(id);
+            var resource = await _context.Resource.Include(r => r.condition).FirstOrDefaultAsync(r => r.Id == id); 
             if (resource == null)
             {
                 return NotFound();
             }
 
+            // если ресурс где-то используется — переводим в архив
+            bool used = await _context.Document_resource.AnyAsync(dr => dr.ResourceId == id);
+            if (used)
+            {
+                var archive = await _context.Condition.FirstAsync(c => c.Name == "Архив");
+                resource.condition = archive;
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
             _context.Resource.Remove(resource);
             await _context.SaveChangesAsync();
 
