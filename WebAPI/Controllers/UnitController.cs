@@ -107,6 +107,15 @@ namespace WebAPI.Controllers
                 return NotFound();
             }
 
+            // если ресурс где-то используется — переводим в архив
+            bool used = await _context.Document_resource.AnyAsync(dr => dr.ResourceId == id);
+            if (used)
+            {
+                var archive = await _context.Condition.FirstAsync(c => c.Name == "Архив");
+                unit_of_measurement.condition = archive;
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
             _context.Unit.Remove(unit_of_measurement);
             await _context.SaveChangesAsync();
 

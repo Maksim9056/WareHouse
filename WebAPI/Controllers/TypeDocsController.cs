@@ -96,12 +96,22 @@ namespace WebAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTypeDoc(int id)
         {
-            var typeDoc = await _context.TypeDoc.FindAsync(id);
+
+            var typeDoc = await _context.TypeDoc.FirstOrDefaultAsync(u =>u.Id ==id);
+
             if (typeDoc == null)
             {
                 return NotFound();
             }
-
+            // если ресурс где-то используется — переводим в архив
+            bool used = await _context.Document.AnyAsync(dr => dr.TypeDocId == id);
+            if (used)
+            {
+                var archive = await _context.Condition.FirstAsync(c => c.Name == "Архив");
+                //typeDoc.condition = archive;
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
             _context.TypeDoc.Remove(typeDoc);
             await _context.SaveChangesAsync();
 
