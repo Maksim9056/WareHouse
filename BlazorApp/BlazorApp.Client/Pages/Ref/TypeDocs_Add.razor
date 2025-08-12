@@ -20,28 +20,47 @@
 
 
 <h3>Создать тип документа</h3>
+@if (error != "")
+{
+    <div class="alert alert-danger mb-3">@error</div>
+}
 <AutoRefForm TRef="TypeDoc"
              Model="typedocs"
              OnValidSubmit="Save" />
 
 @code {
     TypeDoc typedocs = new TypeDoc();
+    public string error = "";
 
     private async Task Save()
     {
         try
         {
 
+            if (typedocs == null || typedocs.Code == null || typedocs.Name == null)
+            {
+                error = "Не заполнено полностью";
+            }
+            else
+            {
+
+                var clien = await HttpClient.PostAsJsonAsync($"TypeDocs", typedocs);
+                if (clien.IsSuccessStatusCode)
+                {
+                    NavManager.NavigateTo("/TypeDocs");
+                }
+                else
+                {
+                    var cd = await clien.Content.ReadAsStringAsync();
+                    error = cd;
+                }
 
 
-            var clien = await HttpClient.PostAsJsonAsync($"TypeDocs", typedocs);
+                // await clien.Content.ReadFromJsonAsync<TypeDoc>();
 
 
-            // await clien.Content.ReadFromJsonAsync<TypeDoc>();
-
-
-            // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
-            NavManager.NavigateTo("/TypeDocs");
+                // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
+            }
         }
         catch (Exception e)
         {

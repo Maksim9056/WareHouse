@@ -18,29 +18,45 @@
 
 } *@
 
-
+@if (error != "")
+    {
+<div class="alert alert-danger mb-3">@error</div>
+    }
 <AutoRefForm TRef="Condition"
              Model="Condition"
              OnValidSubmit="Save" />
 
 @code {
     Condition Condition = new Condition();
+    public string error = "";
 
     private async Task Save()
     {
         try
         {
+            if (Condition == null || Condition.Code == null || Condition.Name == null)
+            {
+                error = "Не заполнено полностью";
+            }
+            else
+            {
+                var clien = await HttpClient.PostAsJsonAsync($"Conditions", Condition);
 
-
-
-            var clien = await HttpClient.PostAsJsonAsync($"Conditions", Condition);
-
+                if (clien.IsSuccessStatusCode)
+                {
+                    NavManager.NavigateTo("/Conditions");
+                }
+                else
+                {
+                    var cd = await clien.Content.ReadAsStringAsync();
+                    error = cd;
+                }
+            }
 
             // await clien.Content.ReadFromJsonAsync<TypeDoc>();
 
 
             // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
-            NavManager.NavigateTo("/Conditions");
         }
         catch (Exception e)
         {

@@ -44,6 +44,10 @@
 }
 else
 {
+    @if (error != "")
+    {
+        <div class="alert alert-danger mb-3">@error</div>
+    }
     <AutoRefForm TRef="Resource"
                  Model="resource"
                  ReferenceDictionaries="refDicts"
@@ -57,6 +61,7 @@ else
     IEnumerable<Condition> condition ;
     Condition conditions = new Condition();
     Dictionary<Type, IEnumerable<BaseRef>> refDicts;
+    public string error = "";
 
     private async Task Save()
     {
@@ -65,12 +70,28 @@ else
             if (conditions != null)
             {
 
-           
-             
-                var clien = await HttpClient.PostAsJsonAsync($"Resources", resource);
 
-                // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
-                NavManager.NavigateTo("/Resource");
+                if (resource == null || resource.condition == null || resource.Code == null || resource.Name == null)
+                {
+                    error = "Не заполнено полностью";
+                }
+                else
+                {
+                    var clien = await HttpClient.PostAsJsonAsync($"Resources", resource);
+
+                    if (clien.IsSuccessStatusCode)
+                    {
+                        NavManager.NavigateTo("/Resource");
+                    }
+                    else
+                    {
+                        var cd = await clien.Content.ReadAsStringAsync();
+                        error = cd;
+                    }
+
+
+                    // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
+                }
             }
 
         }

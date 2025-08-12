@@ -52,6 +52,11 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
+
+            if (await _context.Client.AnyAsync(r => r.Id != id && r.Name == client.Name))
+            {
+                return Conflict("Клиент с таким наименованием уже существует");
+            }
             client.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == client.condition.Id);
 
             _context.Entry(client).State = EntityState.Modified;
@@ -80,6 +85,10 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Client>> PostClient(Client client)
         {
+            if (await _context.Client.AnyAsync(r => r.Id != client.Id && r.Name == client.Name))
+            {
+                return Conflict("Клиент с таким наименованием уже существует");
+            }
             client.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == client.condition.Id);
 
             _context.Client.Add(client);

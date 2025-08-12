@@ -51,7 +51,10 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
-
+            if (await _context.Condition.AnyAsync(r => r.Id != condition.Id && r.Name == condition.Name))
+            {
+                return Conflict("Cостояние с таким наименованием уже существует");
+            }
             _context.Entry(condition).State = EntityState.Modified;
 
             try
@@ -78,6 +81,10 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Condition>> PostCondition(Condition condition)
         {
+            if (await _context.Condition.AnyAsync(r => r.Id != condition.Id && r.Name == condition.Name))
+            {
+                return Conflict("Cостояние с таким наименованием уже существует");
+            }
             _context.Condition.Add(condition);
             await _context.SaveChangesAsync();
 

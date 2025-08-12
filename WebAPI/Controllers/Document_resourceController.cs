@@ -173,6 +173,7 @@ namespace WebAPI.Controllers
                         DateTime = ts,
                         Count = r.Count
                     };
+
                     _context.Document_resource.Add(newRow);
                 }
                 else

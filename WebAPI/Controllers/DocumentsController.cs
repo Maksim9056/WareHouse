@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.IO;
+using System.Text;
 using WebAPI.Service;
 
 namespace WebAPI.Controllers;
@@ -115,7 +116,10 @@ public class DocumentsController : ControllerBase
 
         await ValidateDocumentFksAsync(document);
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
+        if (await _context.Document.AnyAsync(r => r.Id != document.Id && r.Number == document.Number))
+        {
+            return Conflict("Документ с таким наименованием уже существует");
+        }
         _context.Document.Add(document);
         await _context.SaveChangesAsync();
         _balances.InvalidateBalancesCache(); // сброс сразу после записи
@@ -135,7 +139,10 @@ public class DocumentsController : ControllerBase
 
         await ValidateDocumentFksAsync(incoming);
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
+        if (await _context.Document.AnyAsync(r => r.Id != incoming.Id && r.Number == incoming.Number))
+        {
+            return Conflict("Документ с таким наименованием уже существует");
+        }
         // обновляем скаляры и FK
         doc.Number = incoming.Number;
         doc.Date = incoming.Date;
@@ -189,7 +196,11 @@ public class DocumentsController : ControllerBase
         }
 
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
+       
+        if (await _context.Document.AnyAsync(r => r.Id != payload.Document.Id && r.Number == payload.Document.Number))
+        {
+            return Conflict("Документ с таким наименованием уже существует");
+        }
         await using var tx = await _context.Database.BeginTransactionAsync();
 
         _context.Document.Add(payload.Document);
@@ -216,6 +227,10 @@ public class DocumentsController : ControllerBase
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
+        if (await _context.Document.AnyAsync(r => r.Id != payload.Document.Id && r.Number == payload.Document.Number))
+        {
+            return Conflict("Документ с таким наименованием уже существует");
+        }
         var doc = await _context.Document.FirstOrDefaultAsync(d => d.Id == id);
         if (doc is null) return NotFound();
 

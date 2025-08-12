@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using ClassLibrary.Date;
+using ClassLibrary.Models;
+using Elfie.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ClassLibrary.Date;
-using ClassLibrary.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace WebAPI.Controllers
 {
@@ -51,7 +52,10 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
-
+            if (await _context.TypeDoc.AnyAsync(r => r.Id != typeDoc.Id && r.Name == typeDoc.Name))
+            {
+                return Conflict("Тип документа с таким наименованием уже существует");
+            }
             _context.Entry(typeDoc).State = EntityState.Modified;
 
             try
@@ -78,6 +82,10 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<TypeDoc>> PostTypeDoc(TypeDoc typeDoc)
         {
+            if (await _context.TypeDoc.AnyAsync(r => r.Id != typeDoc.Id && r.Name == typeDoc.Name))
+            {
+                return Conflict("Тип документа с таким наименованием уже существует");
+            }
             _context.TypeDoc.Add(typeDoc);
             await _context.SaveChangesAsync();
 

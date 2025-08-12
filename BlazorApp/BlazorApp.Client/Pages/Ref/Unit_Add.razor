@@ -1,10 +1,10 @@
 ﻿@page "/Unit/Add"
-<h3> Создать Единицы измерения</h3>
 @using BlazorApp.Client.Pages.Component
 @using ClassLibrary.Models
 @rendermode InteractiveWebAssembly
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
+<h3> Создать Единицы измерения</h3>
 
 @if (conditions == null)
 {
@@ -12,10 +12,15 @@
 }
 else
 {
+    @if (error != "")
+    {
+        <div class="alert alert-danger mb-3">@error</div>
+    }
     <AutoRefForm TRef="Unit"
                  Model="Unit"
                  ReferenceDictionaries="refDicts"
                  OnValidSubmit="Save" />
+           
 }
 
 
@@ -25,6 +30,7 @@ else
     IEnumerable<Condition> condition ;
     Condition conditions = new Condition();
     Dictionary<Type, IEnumerable<BaseRef>> refDicts;
+    public string error = "";
 
     private async Task Save()
     {
@@ -32,13 +38,29 @@ else
         {
             if (conditions != null)
             {
+                if (Unit == null || Unit.condition == null || Unit.Code == null || Unit.Name == null)
+                {
+                    error = "Не заполнено полностью";
+                }
+                else
+                {
+                    var clien = await HttpClient.PostAsJsonAsync($"Unit", Unit);
+                    if (clien.IsSuccessStatusCode)
+                    {
+                        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
+                        NavManager.NavigateTo("/Unit");
+                    }
+                    else
+                    {
+                        var cd = await clien.Content.ReadAsStringAsync();
+                        error = cd;
+                    }
+                }
 
-           
-             
-                var clien = await HttpClient.PostAsJsonAsync($"Unit", Unit);
 
-                // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
-                NavManager.NavigateTo("/Unit");
+              
+
+
             }
 
         }

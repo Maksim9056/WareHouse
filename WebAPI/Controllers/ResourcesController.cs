@@ -51,6 +51,11 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
+
+            if (await _context.Resource.AnyAsync(r => r.Id != resource.Id && r.Name == resource.Name))
+            {
+                return Conflict("Ресурс с таким наименованием уже существует");
+            }
             resource.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == resource.condition.Id);
 
             _context.Entry(resource).State = EntityState.Modified;
@@ -80,7 +85,10 @@ namespace WebAPI.Controllers
         public async Task<ActionResult<Resource>> PostResource(Resource resource)
         {
 
-
+            if (await _context.Resource.AnyAsync(r => r.Id != resource.Id && r.Name == resource.Name))
+            {
+                return Conflict("Ресурс с таким наименованием уже существует");
+            }
             resource.condition =await _context.Condition.FirstOrDefaultAsync(u => u.Id == resource.condition.Id);
 
             _context.Resource.Add(resource);

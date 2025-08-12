@@ -5,7 +5,10 @@
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
 <h3>  Единицы измерения</h3>
-
+ @if (error != "")
+    {
+<div class="alert alert-danger mb-3">@error</div>
+    }
 <AutoRefEdit TRef="Unit"
              Id="Id"
              ApiPath="Unit"
@@ -25,6 +28,7 @@
     public int Id { get; set; }
     Unit Unit;
     Dictionary<Type, IEnumerable<BaseRef>> refDicts = new();
+    public string error = "";
 
     Task AfterSave(Unit r)
     {

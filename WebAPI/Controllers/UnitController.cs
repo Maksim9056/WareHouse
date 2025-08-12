@@ -52,6 +52,11 @@ namespace WebAPI.Controllers
             {
                 return BadRequest();
             }
+            
+            if (await _context.Unit.AnyAsync(r => r.Id != unit_of_measurement.Id && r.Name == unit_of_measurement.Name))
+            {
+                return Conflict("Единица измерения  с таким наименованием уже существует");
+            }
             unit_of_measurement.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == unit_of_measurement.condition.Id);
 
             _context.Entry(unit_of_measurement).State = EntityState.Modified;
@@ -80,6 +85,10 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Unit>> PostUnit_of_measurement(Unit unit_of_measurement)
         {
+            if (await _context.Unit.AnyAsync(r => r.Id != unit_of_measurement.Id && r.Name == unit_of_measurement.Name))
+            {
+                return Conflict("Единица измерения  с таким наименованием уже существует");
+            }
             unit_of_measurement.condition = await _context.Condition.FirstOrDefaultAsync(u => u.Id == unit_of_measurement.condition.Id);
 
             _context.Unit.Add(unit_of_measurement);
