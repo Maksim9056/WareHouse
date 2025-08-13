@@ -27,7 +27,7 @@ namespace WebAPI
                 options.AddPolicy("AllowBlazorClient", policy =>
                 {
                     policy
-                        .WithOrigins("https://localhost:7104")   // здесь адрес вашего WASM-клиента
+                        .WithOrigins(builder.Configuration.GetConnectionString("Client"))   // здесь адрес вашего WASM-клиента
                         .AllowAnyHeader()
                         .AllowAnyMethod();
                 });
