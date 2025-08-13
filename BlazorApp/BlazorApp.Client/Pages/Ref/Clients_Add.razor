@@ -39,7 +39,6 @@ else
             if (conditions != null)
             {
 
-                
                 if (client == null || client.condition == null || client.Code == null || client.Name == null ||  client.Address == null)
                 {
                         error = "Не заполнено полностью";
@@ -69,27 +68,10 @@ else
         }
     }
 
-    // private void OnLanguageChanged(ChangeEventArgs e)
-    // {
-    //     // = e.Value.ToString();
-    //     conditions.Name = Convert.ToString(e.Value.ToString());
-    //     // Логика, выполняемая при изменении выбора
-
-    //     Console.WriteLine($"Выбранное состояние : {conditions.Id}");
-    // }
-
-
-    // private void OnArchive()
-    // {
-    //     // TODO: заменить на реальную логику
-    //     // NavManager.NavigateTo("/Clients/Archive");
-    // }
-
     protected override async Task OnInitializedAsync()
     {
         try
-        {   // httpClientFactory.CreateClient("ApiClient");
-            // https://localhost:7166/api/
+        {  
             var client = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
             condition = client;
 
@@ -97,9 +79,7 @@ else
             {
                 [typeof(Condition)] = condition
             };
-            // // https://localhost:7166/api/
-            // var client = await HttpClient.GetFromJsonAsync<TypeDoc>($"TypeDocs/{Id}");
-            // typedocs = client;
+          
         }
         catch (Exception e)
         {

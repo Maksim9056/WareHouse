@@ -13,7 +13,7 @@
              ReferenceDictionaries="refDicts"
              FormName="clients-edit"
              OnSaved="AfterSave">
-    <!-- ВАЖНО: имя формы -->
+
     <ExtraButtons>
         <button class="btn btn-warning" @onclick="Archive">К архиву</button>
     </ExtraButtons>
@@ -38,8 +38,6 @@
 
     async Task Archive()
     {
-        // твоя логика архивации
-        // await Http.PutAsJsonAsync($"Resources/{Id}/archive", new { });
         Nav.NavigateTo("/Resource");
     }
 }

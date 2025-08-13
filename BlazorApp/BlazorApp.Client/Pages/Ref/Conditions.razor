@@ -24,25 +24,19 @@ else
     IEnumerable<Condition> сonditions;
     protected override async Task OnInitializedAsync()
     {
-
-        // httpClientFactory.CreateClient("ApiClient");
-        // https://localhost:7166/api/
         var client = await HttpClient.GetFromJsonAsync<IEnumerable<Condition>>("Conditions");
         сonditions = client;
-        // return base.OnInitializedAsync();
     }
 
 
     private void OnAdd()
     {
-        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
         NavManager.NavigateTo("/Conditions/Add");
     }
 
     private void OnArchive()
     {
-        // TODO: заменить на реальную логику
-        // NavManager.NavigateTo("/Clients/Archive");
+       
     }
 
     void ShowDetails(Condition r)
@@ -61,7 +55,6 @@ else
     {
         try
         {
-            // Переход на страницу деталей, например /TypeDocs/Details/5
             NavManager.NavigateTo($"/Conditions/Edit/{id.Id}");
         }
         catch (Exception e)

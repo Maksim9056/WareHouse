@@ -5,20 +5,6 @@
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
 
-
-@* 
-<div class="mb-3">
-    <button class="btn btn-success me-2" @onclick="() => Save()">Сохранить</button>
-</div>
-<label>Название</label>
-
-@if (typedocs != null)
-{
-    <input @bind="typedocs.Name" />
-
-} *@
-
-
 <h3>Создать тип документа</h3>
 @if (error != "")
 {
@@ -54,12 +40,6 @@
                     var cd = await clien.Content.ReadAsStringAsync();
                     error = cd;
                 }
-
-
-                // await clien.Content.ReadFromJsonAsync<TypeDoc>();
-
-
-                // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
             }
         }
         catch (Exception e)
@@ -70,17 +50,14 @@
 
     private void OnArchive()
     {
-        // TODO: заменить на реальную логику
-        // NavManager.NavigateTo("/Clients/Archive");
+
     }
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // // https://localhost:7166/api/
-            // var client = await HttpClient.GetFromJsonAsync<TypeDoc>($"TypeDocs/{Id}");
-            // typedocs = client;
+          
         }
         catch (Exception e)
         {

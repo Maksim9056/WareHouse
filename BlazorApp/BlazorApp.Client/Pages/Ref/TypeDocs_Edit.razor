@@ -4,21 +4,6 @@
 @rendermode InteractiveWebAssembly
 @inject NavigationManager NavManager
 @inject HttpClient HttpClient
-@* 
-<h3>Тип документа</h3>
-
-<div class="mb-3">
-    <button class="btn btn-success me-2" @onclick="() => Save()">Сохранить</button>
-    <button class="btn btn-warning" @onclick="() => OnArchive()">К архиву</button>
-</div>
-<label>Название</label>
-
-@if (typedocs != null)
-{
-    <input @bind="typedocs.Name" />
-
-}
- *@
 
 <AutoRefEdit TRef="TypeDoc"
              Id="Id"
@@ -26,7 +11,6 @@
              ReferenceDictionaries="refDicts"
              FormName="typedocs-edit"
              OnSaved="AfterSave">
-    <!-- ВАЖНО: имя формы -->
     <ExtraButtons>
         <button class="btn btn-warning" @onclick="Archive">К архиву</button>
     </ExtraButtons>
@@ -48,8 +32,7 @@
 
     async Task Archive()
     {
-        // твоя логика архивации
-        // await Http.PutAsJsonAsync($"Resources/{Id}/archive", new { });
+
         NavManager.NavigateTo("/TypeDocs");
     }
     private async Task Save()
@@ -61,11 +44,6 @@
 
             var clien = await HttpClient.PutAsJsonAsync($"TypeDocs/{Id}", typedocs);
 
-
-            // await clien.Content.ReadFromJsonAsync<TypeDoc>();
-
-
-            // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
             NavManager.NavigateTo("/TypeDocs");
         }
         catch(Exception e)
@@ -76,13 +54,7 @@
 
     private async Task OnArchive()
     {
-
-        var clien = await HttpClient.DeleteAsync($"TypeDocs/{Id}");
-
-        // TODO: заменить на реальную логику
-        // NavManager.NavigateTo("/Clients/Archive");
         NavManager.NavigateTo("/TypeDocs");
-
     }
 
     protected override async Task OnInitializedAsync()

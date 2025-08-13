@@ -21,7 +21,6 @@
     {
         try
         {
-            // https://localhost:7166/api/
             var client = await HttpClient.GetFromJsonAsync<IEnumerable<Client>>("Clients");
             Client = client;
         }
@@ -33,13 +32,11 @@
     }
     private void OnAdd()
     {
-        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
         NavManager.NavigateTo("/Clients/add");
     }
 
     private void OnArchive()
     {
-        // TODO: заменить на реальную логику
         NavManager.NavigateTo("/Clients/Archive");
     }
 
@@ -47,7 +44,6 @@
     {
         try
         {
-            // Переход на страницу деталей, например /TypeDocs/Details/5
             NavManager.NavigateTo($"/Clients/{id.Id}");
         }
         catch (Exception e)

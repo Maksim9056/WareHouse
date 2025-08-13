@@ -61,13 +61,7 @@ namespace ClassLibrary.Date
                 .WithMany()
                 .HasForeignKey(d => d.ConditionId)
                 .OnDelete(DeleteBehavior.Restrict);
-            //modelBuilder.Entity<CurrencyTick>()
-            //    .HasIndex(ct => new { ct.Pair, ct.Timestamp });
-
-            //modelBuilder.Entity<CurrencyPair>()
-            //    .HasIndex(cp => cp.Symbol)
-            //    .IsUnique();
-
+          
             // ----- индексы (ускорение отчёта) -----
             modelBuilder.Entity<Document>()
                 .HasIndex(d => d.TypeDocId);

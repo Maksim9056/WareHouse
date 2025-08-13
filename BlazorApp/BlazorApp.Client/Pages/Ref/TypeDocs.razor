@@ -21,42 +21,6 @@ else
     </AutoRefTable>
 }
 
-
-
-
-@* @if (typedocs == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-
-
-
-    <table class="document-table">
-        <!-- задаём ширину колонок -->
-        <colgroup>
-            <col style="width:50%;" />
-        </colgroup>
-
-        <thead>
-            <tr>
-                <th>Наименование</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var doc in typedocs)
-            {
-                <tr class="clickable-row"  @onclick="() => OnRowClick(doc.Id)">
-                    <td>@doc.Name</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-
-} *@
-
 @code {
     IEnumerable<TypeDoc> typedocs;
 
@@ -76,13 +40,11 @@ else
     }
     private void OnAdd()
     {
-        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
         NavManager.NavigateTo("/TypeDocs/add");
     }
 
     private void OnArchive()
     {
-        // TODO: заменить на реальную логику
         NavManager.NavigateTo("/Clients/Archive");
     }
 
@@ -90,8 +52,7 @@ else
     {
         try
         {
-        // Переход на страницу деталей, например /TypeDocs/Details/5
-        NavManager.NavigateTo($"/TypeDocs/Details/{id.Id}");
+          NavManager.NavigateTo($"/TypeDocs/Details/{id.Id}");
         }
         catch (Exception e)
         {

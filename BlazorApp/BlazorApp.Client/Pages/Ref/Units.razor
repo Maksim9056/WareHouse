@@ -32,23 +32,19 @@ else
     protected override async Task OnInitializedAsync()
     {
 
-        // httpClientFactory.CreateClient("ApiClient");
-    // https://localhost:7166/api/
+
         var client = await HttpClient.GetFromJsonAsync<IEnumerable<Resource>>("Unit");
         resources = client;
-        // return base.OnInitializedAsync();
     }
 
     private void OnAdd()
     {
-        // TODO: заменить на реальную логику (навигация, открытие модалки и т.п.)
         NavManager.NavigateTo("/Unit/add");
     }
 
     private void OnArchive()
     {
-        // TODO: заменить на реальную логику
-        // NavManager.NavigateTo("/Clients/Archive");
+  
     }
 
     void ShowDetails(Resource r)
@@ -67,7 +63,6 @@ else
     {
         try
         {
-            // Переход на страницу деталей, например /TypeDocs/Details/5
             NavManager.NavigateTo($"/Unit/Edit/{id}");
         }
         catch (Exception e)
